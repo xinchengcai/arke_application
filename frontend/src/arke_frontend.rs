@@ -26,17 +26,17 @@ const REGISTRAR_DOMAIN: &'static [u8] = b"registration";
 
 
 pub struct Arke {
-    pub _alice_id_string: String,
-    pub _bob_id_string: String,
-    pub _alice_sk: UserSecretKey<Bls12<Parameters>>,
-    pub _bob_sk: UserSecretKey<Bls12<Parameters>>,
-    pub _alice_computes_shared_seed: QuadExtField<Fp12ParamsWrapper<Fq12Parameters>>,
-    pub _bob_computes_shared_seed: QuadExtField<Fp12ParamsWrapper<Fq12Parameters>>,
-    pub _symmetric_key: Vec<u8>,
-    pub _alice_write_tag: StoreKey,
-    pub _bob_write_tag: StoreKey,
-    pub _alice_read_tag: StoreKey,
-    pub _bob_read_tag: StoreKey,
+    pub alice_id_string: String,
+    pub bob_id_string: String,
+    pub alice_sk: UserSecretKey<Bls12<Parameters>>,
+    pub bob_sk: UserSecretKey<Bls12<Parameters>>,
+    pub alice_computes_shared_seed: QuadExtField<Fp12ParamsWrapper<Fq12Parameters>>,
+    pub bob_computes_shared_seed: QuadExtField<Fp12ParamsWrapper<Fq12Parameters>>,
+    pub symmetric_key: Vec<u8>,
+    pub alice_write_tag: StoreKey,
+    pub bob_write_tag: StoreKey,
+    pub alice_read_tag: StoreKey,
+    pub bob_read_tag: StoreKey,
 }
 
 impl Arke {
@@ -51,7 +51,7 @@ impl Arke {
         let num_of_identifier_bytes = alice_id.0.as_bytes().len();
         let num_of_blinding_factor_bits = ark_bls12_377::Fr::one().serialized_size() * 8;
         // Simulate the SNARK trusted setup
-        println!("Running trusted setup");
+        println!("- Running trusted setup");
         let pp_zk = ArkeIdNIKE::setup_blind_id_proof(
             num_of_domain_sep_bytes,
             num_of_identifier_bytes,
@@ -61,17 +61,17 @@ impl Arke {
         .unwrap();
 
         // Simulate the DKG between issuers
-        println!("Running DKG");
+        println!("- Running DKG");
         let (pp_issuance, honest_issuers_secret_keys, honest_issuers_public_keys) =
             ArkeIdNIKE::simulate_issuers_DKG(THRESHOLD, NUMBER_OF_PARTICIPANTS, &mut rng).unwrap();
 
         // Create a registration authority
-        println!("Setup registration authority");
+        println!("- Setup registration authority");
         let (_pp_registration, registrar_secret_key, registrar_public_key) =
             ArkeIdNIKE::setup_registration(&mut rng);
 
         // Compute Alice and Bob's respective user secret keys
-        println!("Your private keys:");
+        println!("- Your private keys:");
         let alice_sk = Self::get_user_secret_key(
             &pp_zk,
             &pp_issuance,
@@ -85,7 +85,7 @@ impl Arke {
             &mut rng,
         );
 
-        println!("Your contact's private keys:");
+        println!("- Your contact's private keys:");
         let bob_sk = Self::get_user_secret_key(
             &pp_zk,
             &pp_issuance,
@@ -106,7 +106,7 @@ impl Arke {
         alice_computes_shared_seed
             .serialize(&mut alice_seed_bytes)
             .unwrap();
-        println!("You computes shared seed: {:?}\n", alice_seed_bytes);
+        println!("- You computes shared seed: {:?}\n", alice_seed_bytes);
 
         let bob_computes_shared_seed =
             ArkeIdNIKE::shared_key(&bob_sk, &bob_id, &alice_id, REGISTRAR_DOMAIN).unwrap();
@@ -114,10 +114,10 @@ impl Arke {
         bob_computes_shared_seed
             .serialize(&mut bob_seed_bytes)
             .unwrap();
-        println!("Your contact computes shared seed: {:?}\n", bob_seed_bytes);
+        println!("- Your contact computes shared seed: {:?}\n", bob_seed_bytes);
 
         assert_eq!(alice_computes_shared_seed, bob_computes_shared_seed);
-        println!("The seeds match!\n");
+        println!("- The seeds match!\n");
 
 
         /* Arke handshake */
@@ -127,7 +127,7 @@ impl Arke {
         // Derive symmertric key from the shared seed
         let symmetric_key = UnlinkableHandshake::derive_symmetric_key(&shared_seed).unwrap();
         assert_eq!(SIZE_SYMMETRIC_KEYS_IN_BYTES, symmetric_key.len());
-        println!("You and your contact derive a symmetric key: {:?}", symmetric_key);
+        println!("- You and your contact derive a symmetric key: {:?}", symmetric_key);
     
         // Compute Write and Read tags
         let (alice_write_tag, _alice_exponent) =
@@ -156,17 +156,17 @@ impl Arke {
         UnlinkableHandshake::verify_write_location(&alice_write_tag, &proof, &session_id).unwrap();
 
         Arke{
-            _alice_id_string: alice_id_string,
-            _bob_id_string: bob_id_string,
-            _alice_sk: alice_sk,
-            _bob_sk: bob_sk,
-            _alice_computes_shared_seed: alice_computes_shared_seed,
-            _bob_computes_shared_seed: bob_computes_shared_seed,
-            _symmetric_key: symmetric_key,
-            _alice_write_tag: alice_write_tag,
-            _bob_write_tag: bob_write_tag,
-            _alice_read_tag: alice_read_tag,
-            _bob_read_tag: bob_read_tag,
+            alice_id_string: alice_id_string,
+            bob_id_string: bob_id_string,
+            alice_sk: alice_sk,
+            bob_sk: bob_sk,
+            alice_computes_shared_seed: alice_computes_shared_seed,
+            bob_computes_shared_seed: bob_computes_shared_seed,
+            symmetric_key: symmetric_key,
+            alice_write_tag: alice_write_tag,
+            bob_write_tag: bob_write_tag,
+            alice_read_tag: alice_read_tag,
+            bob_read_tag: bob_read_tag,
         }
     }
 
@@ -183,18 +183,18 @@ impl Arke {
         issuers_public_keys: &[IssuerPublicKey<Bls12_377>],
         rng: &mut R,
     ) -> UserSecretKey<Bls12_377> {
-        println!("    Registration");
+        println!("    - Registration");
         // Register our user
         let reg_attestation =
             ArkeIdNIKE::register(&registrar_secret_key, &user_id, registrar_domain).unwrap();
     
         // Blind the identifier and token
-        println!("    Blinding (and proof)");
+        println!("    - Blinding (and proof)");
         let (blinding_factor, blind_id, blind_reg_attestation) =
             ArkeIdNIKE::blind(pp_zk, user_id, registrar_domain, &reg_attestation, rng).unwrap();
     
         // Obtain blind partial secret keys from t+1 honest authorities
-        println!("    BlindPartialExtract (verify reg and proof)");
+        println!("    - BlindPartialExtract (verify reg and proof)");
         let blind_partial_user_keys: Vec<BlindPartialSecretKey<Bls12_377>> = issuers_secret_keys
             .iter()
             .zip(issuers_public_keys.iter())
@@ -213,14 +213,14 @@ impl Arke {
             .collect();
     
         // Unblind each partial key
-        println!("    Unblind");
+        println!("    - Unblind");
         let partial_user_keys: Vec<PartialSecretKey<Bls12_377>> = blind_partial_user_keys
             .iter()
             .map(|blind_partial_sk| ArkeIdNIKE::unblind(blind_partial_sk, &blinding_factor))
             .collect();
     
         // Combine the partial keys to obtain a user secret key
-        println!("    Combine");
+        println!("    - Combine");
         let user_secret_key = ArkeIdNIKE::combine(&partial_user_keys, threshold).unwrap();
     
         user_secret_key

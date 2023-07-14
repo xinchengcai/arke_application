@@ -1,22 +1,21 @@
 #![allow(non_snake_case)]
 
 // Libs for ethereum contract 
-use web3::types::H160;
 mod key_value_store_frontend;
 
 // Libs for arke
-use arke_core:: StoreKey;
 mod arke_frontend;
 
 // Libs for UI
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
-use serde::{Serialize, Deserialize};
-mod MainMenuOption0;
-use MainMenuOption0::option0;
-mod MainMenuOption1;
-use MainMenuOption1::option1;
-mod MainMenuOption2;
-use MainMenuOption2::option2;
+mod main_menu_option0;
+use main_menu_option0::option0;
+mod main_menu_option1;
+use main_menu_option1::option1;
+mod main_menu_option2;
+use main_menu_option2::option2;
+mod main_menu_option3;
+use main_menu_option3::option3;
 
 
 #[tokio::main]
@@ -25,17 +24,9 @@ pub async fn main() -> std::io::Result<()> {
         "My info",
         "Contacts",
         "Contact Discovery",
+        "Delete Contact",
         "Exit",
     ];
-
-    #[derive(Serialize, Deserialize, Debug)]
-    struct Contact {
-        id: String,
-        store_addr: H160,
-        write_tag: StoreKey,
-        read_tag: StoreKey,
-        symmetric_key: Vec<u8>,
-    }
 
     loop {
         let MainMenuSelection = FuzzySelect::with_theme(&ColorfulTheme::default())
@@ -56,6 +47,9 @@ pub async fn main() -> std::io::Result<()> {
                 option2();
             }
             3 => {
+                option3().await;
+            }
+            4 => {
                 break;
             }
             _ => {
