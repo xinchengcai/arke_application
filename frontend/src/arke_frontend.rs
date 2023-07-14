@@ -1,4 +1,3 @@
-// Libs for arke
 use ark_bw6_761::BW6_761;
 use ark_bls12_377::{Bls12_377, Parameters, Fq12Parameters};
 use ark_ec::bls12::Bls12;
@@ -24,125 +23,6 @@ const NUMBER_OF_PARTICIPANTS: usize = 10;
 const THRESHOLD: usize = 3;
 /// Domain identifier for the registration authority of this example
 const REGISTRAR_DOMAIN: &'static [u8] = b"registration";
-
-// Libs for ethereum contract 
-use web3::{
-    transports::Http,
-    contract::{Contract, Options},
-    types::Address
-};
-use std::str::FromStr;
-
-// New type to better manage contract function handling.
-pub struct KeyValueStore(Contract<Http>);
-
-impl KeyValueStore {
-    #![allow(non_snake_case)]
-    #![allow(unused_variables)]
-    #![allow(dead_code)]
-
-    pub async fn new(web3: &web3::Web3<web3::transports::Http>, contract_address: String) -> Self {
-        let contract_address = Address::from_str(&contract_address).unwrap();
-        let contract =
-            Contract::from_json(web3.eth(), contract_address, include_bytes!("KeyValueStore.abi")).unwrap();
-        KeyValueStore(contract)
-    }
-
-
-    /* Write */ 
-    pub async fn Write(&self, cipher: Vec<u8>, addr: Address, from: Address, id: String) {
-        println!("Write cipher: {:?}", cipher);
-        // Call to create the transaction
-        let tx = self
-            .0
-            .call(
-                "Write",
-                (cipher, addr, id),
-                from,
-                Options {
-                    gas: Some(5_000_000.into()),
-                    ..Default::default()
-                }
-            )
-            .await;
-        match tx {
-            Ok(_) => println!("Write completed"),
-            Err(e) => eprintln!("Failed to Write: {:?}", e),
-        }
-    }
-
-
-    /* Read */
-    pub async fn Read(&self, addr: Address, from: Address, key: Vec<u8>, tag: StoreKey, iv: Vec<u8>) {
-        // Call to create the transaction
-        let result: Result<Vec<u8>, web3::contract::Error> = self
-            .0
-            .query(
-                "Read",
-                addr,
-                from,
-                Options {
-                    gas: Some(5_000_000.into()),
-                    ..Default::default()
-                },
-                None
-            ).await;
-        match result {
-            Ok(cipher) => {
-                println!("Read cipher: {:?}", cipher);
-                let recovered_message = UnlinkableHandshake::decrypt_message(
-                    &key,
-                    &tag,
-                    &iv,
-                    &cipher,
-                )
-                .unwrap();   
-                println!("Message: {:?}", recovered_message);   
-                let recovered_message_text = String::from_utf8(recovered_message.to_vec()).unwrap();   
-                println!("Message in text: {:?}", recovered_message_text); 
-            },
-            Err(e) => println!("Failed to show Read result: {}", e),
-        }
-        let tx = self
-            .0
-            .call(
-                "Read",
-                addr,
-                from,
-                Options {
-                    gas: Some(5_000_000.into()),
-                    ..Default::default()
-                }
-            )
-            .await;
-        match tx {
-            Ok(tx_hash) => println!("Read completed"),
-            Err(e) => eprintln!("Failed to Read: {:?}", e),
-        }
-    }
-
-
-    /* Delete */
-    pub async fn Delete(&self, addr: Address, from: Address) {
-        // Call to create the transaction
-        let tx = self
-            .0
-            .call(
-                "Delete",
-                addr,
-                from,
-                Options {
-                    gas: Some(5_000_000.into()),
-                    ..Default::default()
-                }
-            )
-            .await;
-        match tx {
-            Ok(_) => println!("Delete completed"),
-            Err(e) => eprintln!("Failed to Delete: {:?}", e),
-        }
-    }
-}
 
 
 pub struct Arke {
@@ -191,7 +71,7 @@ impl Arke {
             ArkeIdNIKE::setup_registration(&mut rng);
 
         // Compute Alice and Bob's respective user secret keys
-        println!("Alice gets her private keys:");
+        println!("Your private keys:");
         let alice_sk = Self::get_user_secret_key(
             &pp_zk,
             &pp_issuance,
@@ -205,7 +85,7 @@ impl Arke {
             &mut rng,
         );
 
-        println!("Bob gets his private keys:");
+        println!("Your contact's private keys:");
         let bob_sk = Self::get_user_secret_key(
             &pp_zk,
             &pp_issuance,
@@ -226,7 +106,7 @@ impl Arke {
         alice_computes_shared_seed
             .serialize(&mut alice_seed_bytes)
             .unwrap();
-        println!("Alice computes shared seed: {:?}\n", alice_seed_bytes);
+        println!("You computes shared seed: {:?}\n", alice_seed_bytes);
 
         let bob_computes_shared_seed =
             ArkeIdNIKE::shared_key(&bob_sk, &bob_id, &alice_id, REGISTRAR_DOMAIN).unwrap();
@@ -234,7 +114,7 @@ impl Arke {
         bob_computes_shared_seed
             .serialize(&mut bob_seed_bytes)
             .unwrap();
-        println!("Bob computes shared seed: {:?}\n", bob_seed_bytes);
+        println!("Your contact computes shared seed: {:?}\n", bob_seed_bytes);
 
         assert_eq!(alice_computes_shared_seed, bob_computes_shared_seed);
         println!("The seeds match!\n");
@@ -247,7 +127,7 @@ impl Arke {
         // Derive symmertric key from the shared seed
         let symmetric_key = UnlinkableHandshake::derive_symmetric_key(&shared_seed).unwrap();
         assert_eq!(SIZE_SYMMETRIC_KEYS_IN_BYTES, symmetric_key.len());
-        println!("Alice and Bob derive a symmetric key: {:?}", symmetric_key);
+        println!("You and your contact derive a symmetric key: {:?}", symmetric_key);
     
         // Compute Write and Read tags
         let (alice_write_tag, _alice_exponent) =
