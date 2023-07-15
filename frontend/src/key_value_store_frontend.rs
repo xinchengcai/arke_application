@@ -75,7 +75,10 @@ impl KeyValueStore {
                 let recovered_message_text = String::from_utf8(recovered_message.to_vec()).unwrap();   
                 println!("Message in text: {:?}", recovered_message_text); 
             },
-            Err(e) => println!("Failed to show Read result: {}", e),
+            Err(e) => {
+                println!("Failed to show Read result: {}", e);
+                return;
+            }
         }
         let tx = self
             .0

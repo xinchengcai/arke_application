@@ -29,5 +29,3 @@ bincode = "1.3.3"
 tiny-keccak = "2.0.2"
 hex = "0.4.2"
 dialoguer = {version = "0.10.4", features = ["fuzzy-select"]}
-indicatif = "0.15.0"
-colored = "2.0"

@@ -54,7 +54,7 @@ pub async fn option1() {
     let contacts: Vec<Contact> = serde_json::from_reader(file).unwrap();
     // Convert each Contact to a string representation and collect them into a vector
     let mut ContactsMenu: Vec<String> = contacts.iter()
-        .map(|contact| { format!("ID: {}     nickname: {}", contact.id, contact.nickname)}).collect();
+        .map(|contact| { format!("ID: {}     Nickname: {}", contact.id, contact.nickname)}).collect();
     ContactsMenu.push("Go back".to_string());
 
     loop {
