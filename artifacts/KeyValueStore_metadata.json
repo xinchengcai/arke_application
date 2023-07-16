@@ -32,6 +32,11 @@
 						"internalType": "bytes",
 						"name": "",
 						"type": "bytes"
+					},
+					{
+						"internalType": "bytes",
+						"name": "",
+						"type": "bytes"
 					}
 				],
 				"stateMutability": "view",
@@ -42,6 +47,11 @@
 					{
 						"internalType": "bytes",
 						"name": "cipher",
+						"type": "bytes"
+					},
+					{
+						"internalType": "bytes",
+						"name": "iv",
 						"type": "bytes"
 					},
 					{
@@ -79,6 +89,11 @@
 						"internalType": "bytes",
 						"name": "cipher",
 						"type": "bytes"
+					},
+					{
+						"internalType": "bytes",
+						"name": "iv",
+						"type": "bytes"
 					}
 				],
 				"stateMutability": "view",
@@ -113,11 +128,11 @@
 	},
 	"sources": {
 		"store\\contracts\\KeyValueStore.sol": {
-			"keccak256": "0xbd735a64ef330946f361da575db231da6c179b91ad00a3d0758e1c011cc0ce97",
+			"keccak256": "0xd3504f8b5ca3e23171ed24f1b51ee6dac630832daf3a18c07b22ef34a282b94c",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://71657e0f8e29e6852bc98ba32d722630f3f7b67bc105d0124d9192b2af5ea7e8",
-				"dweb:/ipfs/QmQi95nxhYmcmEUPbCP6WLkcuXbdRWzbmyuxBx3QaZVpem"
+				"bzz-raw://84b69281c38bd43887501a60633dcece9fe3ab30f42c558d30ba76e4fcda9718",
+				"dweb:/ipfs/QmXaTjtUxxogBzeC6nqG42mcaNNCNoBeiEuh9VjahBqzet"
 			]
 		}
 	},
