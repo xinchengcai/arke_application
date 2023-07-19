@@ -5,7 +5,6 @@ use ark_serialize::CanonicalSerialize;
 use rand::{thread_rng, Rng};
 use arke_core::{
     ThresholdObliviousIdNIKE, UserID, UserSecretKey, 
-
     UnlinkableHandshake, SIZE_SYMMETRIC_KEYS_IN_BYTES, StoreKey,
 };
 use tiny_keccak::{Keccak, Hasher};

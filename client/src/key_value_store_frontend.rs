@@ -1,20 +1,17 @@
+#![allow(non_snake_case)]
+#![allow(unused_variables)]
+#![allow(dead_code)]
+
 use web3::{
     transports::Http,
     contract::{Contract, Options},
     types::Address
 };
 use std::str::FromStr;
-
 use arke_core::{UnlinkableHandshake, StoreKey,};
-
-// New type to better manage contract function handling.
 pub struct KeyValueStore(Contract<Http>);
 
 impl KeyValueStore {
-    #![allow(non_snake_case)]
-    #![allow(unused_variables)]
-    #![allow(dead_code)]
-
     pub async fn new(web3: &web3::Web3<web3::transports::Http>, contract_address: String) -> Self {
         let contract_address = Address::from_str(&contract_address).unwrap();
         let contract =

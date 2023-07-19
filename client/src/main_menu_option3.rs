@@ -1,10 +1,9 @@
-// Libs for ethereum contract 
+#![allow(non_snake_case)]
+
 use web3::types::Address;
 use web3::types::H160;
 use std::str::FromStr;
 use crate::key_value_store_frontend::KeyValueStore;
-
-// Libs for arke
 use arke_core::StoreKey;
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use serde::{Serialize, Deserialize};
@@ -22,7 +21,6 @@ struct Contact {
     symmetric_key: Vec<u8>,
 }
 
-
 #[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 struct MyInfo {
     nickname: String,
@@ -31,35 +29,38 @@ struct MyInfo {
 }
 
 pub async fn option3() {
-    #![allow(non_snake_case)]
-    
-    /*  Setup the contract and an interface to access it's functionality */
+    // Setup the contract and an interface to access it's functionality
     let transport = web3::transports::Http::new("HTTP://127.0.0.1:9545").unwrap();
     let web3 = web3::Web3::new(transport);
     let Store = KeyValueStore::new(
         &web3,
         // Update to match the deployed address
-        "0xff9b37815B953374F1E6da8c0A22C9432fc2df8E".to_string(),
-        )
-        .await;
+        "0xDD7FE36d9340b502F143a4B43663613b0b29cc1f".to_string(),
+    ).await;
 
+    // Read to my_contact.json
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .open("src/contacts.json")
         .unwrap();
+    // Check whether contacts.json is empty or not, i.e. whether there are contacts or not
     let metadata = file.metadata().unwrap();
+    // If empty, return to the main menu
     if metadata.len() == 0 {
         println!("No contacts");
         return;
     }
 
+    // Derialize contacts.json to read contact objects 
     let contacts: Vec<Contact> = serde_json::from_reader(file).unwrap();
-    // Convert each Contact to a string representation and collect them into a vector
+    // Convert each contact to a string representation and collect them into a vector
     let mut ContactsMenu: Vec<String> = contacts.iter()
         .map(|contact| { format!("ID: {}     nickname: {}", contact.id_string, contact.nickname)}).collect();
+    // Add go back to the end of the vector
     ContactsMenu.push("Go back".to_string());
 
+    // Display the vector as a menu
     loop {
         let ContactsMenuSelection = FuzzySelect::with_theme(&ColorfulTheme::default())
         .with_prompt("Which contact would you like to delete?")
@@ -69,9 +70,30 @@ pub async fn option3() {
         .unwrap();
         match ContactsMenuSelection {
             index if index < contacts.len() => {
-                // Here, use the index to get the corresponding contact and perform your operations
+                // If selected a contact
                 let selected_contact = &contacts[index];
-                // Your operations on selected_contact here
+
+                // Delete in the saved contacts
+                // Read then write to my_contact.json
+                let mut file = OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open("src/contacts.json").unwrap();
+                // Derialize contacts.json to read contact objects 
+                let mut contents = String::new();
+                file.read_to_string(&mut contents).unwrap();
+                // Convert each contact to a string representation and collect them into a vector
+                let mut contacts: Vec<Contact> = match serde_json::from_str(&contents) {
+                    Ok(contacts) => contacts,
+                    Err(_) => Vec::new(),
+                };
+                // remove the contact from the vector
+                contacts.remove(index);
+                // Write contacts back to the file
+                let file = File::create("src/contacts.json").unwrap();
+                serde_json::to_writer(&file, &contacts).unwrap();
+
+                /* Delete */
                 let store_addr = selected_contact.store_addr.clone(); 
                 let mut my_info_file = File::open("src/my_info.bin").unwrap();
                 let mut deserialized: Vec<u8> = Vec::new();
@@ -79,31 +101,13 @@ pub async fn option3() {
                 let mut cursor = Cursor::new(&deserialized);
                 let my_info = MyInfo::deserialize(&mut cursor).unwrap();
                 let deleter_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                // Delete on the map
+                // Delete on the map of the store
                 Store.Delete(store_addr, deleter_addr).await;
-
-                // Delete in the saved contacts
-                let mut file = OpenOptions::new()
-                    .read(true)
-                    .write(true)
-                    .open("src/contacts.json").unwrap();
-                // Read the existing contacts
-                let mut contents = String::new();
-                file.read_to_string(&mut contents).unwrap();
-                let mut contacts: Vec<Contact> = match serde_json::from_str(&contents) {
-                    Ok(contacts) => contacts,
-                    Err(_) => Vec::new(), // If error while parsing, treat as empty list
-                };
-                // remove the contact
-                contacts.remove(index);
-                // Write contacts back to the file
-                let file = File::create("src/contacts.json").unwrap();
-                serde_json::to_writer(&file, &contacts).unwrap();
-
-                break;
             }
 
+            // If selected go back
             _ => {
+                // Return to the main menu
                 break;
             }
         }

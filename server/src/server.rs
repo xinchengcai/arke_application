@@ -259,6 +259,8 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
             match sks_db.lock().unwrap().get(&key_id) {
                 Some(key_pair) => {
                     let mut sk = key_pair.alice_sk;
+                    // Ensure I and the user who I want to make contact discovery 
+                    // getting corresponding user secret key
                     for user in users.iter_mut() {
                         if user.id_string == id_string {
                             if user.finding != String::new() {

@@ -30,6 +30,7 @@ pub async fn main() -> std::io::Result<()> {
         "Exit",
     ];
 
+    // Display the main menu
     loop {
         let MainMenuSelection = FuzzySelect::with_theme(&ColorfulTheme::default())
             .with_prompt("What would you like to do?")
@@ -40,19 +41,24 @@ pub async fn main() -> std::io::Result<()> {
 
         match MainMenuSelection {
             0 => {
-                option0().await;
+                // Print my info
+                option0().await; 
             }
             1 => {
-                option1().await;
+                // Print the contact book
+                option1().await; 
             }
             2 => {
-                option2().await;
+                // Perform contact discovery with an application user not in the contact book
+                option2().await; 
             }
             3 => {
-                option3().await;
+                // Delete a contact from the contact book
+                option3().await; 
             }
             4 => {
-                break;
+                // Exit the application
+                break; 
             }
             _ => {
                 println!("Invalid selection");
