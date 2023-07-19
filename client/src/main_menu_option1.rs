@@ -31,6 +31,13 @@ struct MyInfo {
     eth_addr: String
 }
 
+fn print_chatbox(message: &str) {
+    let border = "-".repeat(message.len() + 4);  // "+4" to account for extra padding
+
+    println!("{}", border);
+    println!("| {} |", message);
+    println!("{}", border);
+}
 
 pub async fn option1() {   
     // Setup the contract and an interface to access it's functionality 
@@ -76,7 +83,7 @@ pub async fn option1() {
             // If selected a contact
             index if index < contacts.len() => {
                 let selected_contact = &contacts[index];
-                let id = selected_contact.id_string.clone();
+                let id_string = selected_contact.id_string.clone();
                 let store_addr = selected_contact.store_addr.clone();
                 let own_write_tag = selected_contact.own_write_tag.clone();
                 let own_read_tag = selected_contact.own_read_tag.clone();
@@ -93,9 +100,8 @@ pub async fn option1() {
                 let my_info = MyInfo::deserialize(&mut cursor).unwrap();
                 // Read the store
                 let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                println!("Reading");
-                Store.Read(store_addr, reader_addr, symmetric_key.clone(), own_read_tag).await;
-                println!("At store address: {:?}", store_addr);
+                println!("{}", selected_contact.nickname);
+                Store.Read(store_addr, reader_addr, symmetric_key.clone(), own_read_tag).await;     
 
                 /* Write */
                 // After reading the store, write the store to send the message to the selected contact
@@ -108,10 +114,9 @@ pub async fn option1() {
                     UnlinkableHandshake::encrypt_message(&symmetric_key, &own_write_tag, message.as_bytes(), &mut rng).unwrap();
                 // Write the store
                 let writer_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                println!("\nWriting");
-                println!("Message: {:?}", message);
-                Store.Write(cipher, iv, store_addr, writer_addr, id).await;
-                println!("At store address: {:?}", store_addr);
+                Store.Write(cipher, iv, store_addr, writer_addr, id_string).await;
+                println!("{}", my_info.nickname);
+                print_chatbox(&message);
             }
 
             _ => {

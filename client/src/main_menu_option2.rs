@@ -195,6 +195,7 @@ pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
         "action": "retrieve_sks",
         "key_id": key_id,
         "id_string": my_info.id_string,
+        "want_id_string": want_contact_discovery_id_string,
     });
     // Convert the request to a byte array
     let request_bytes = serde_json::to_vec(&request)?;

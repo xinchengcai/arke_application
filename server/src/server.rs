@@ -255,10 +255,12 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
         Some("retrieve_sks") => {
             let key_id = request["key_id"].as_str().unwrap().to_string();
             let id_string = request["id_string"].as_str().unwrap().to_string();
+            let want_id_string = request["want_id_string"].as_str().unwrap().to_string();
             let mut users = users_db.load().await.unwrap();
+            let mut sk;
             match sks_db.lock().unwrap().get(&key_id) {
                 Some(key_pair) => {
-                    let mut sk = key_pair.alice_sk;
+                    sk = key_pair.alice_sk;
                     // Ensure I and the user who I want to make contact discovery 
                     // getting corresponding user secret key
                     for user in users.iter_mut() {
@@ -268,22 +270,30 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
                             }
                             else {
                                 sk = key_pair.bob_sk;
+                                for u in users.iter_mut() {
+                                    if u.id_string == want_id_string {
+                                        u.finding = String::new();
+                                        u.key_id = String::new();
+                                        break;
+                                    }
+                                }
                                 break;
                             }
                         }
                     }
-
-                    let mut sk_bytes = Vec::new();
-                    sk.serialize(&mut sk_bytes).unwrap();
-                    let sk_str = base64::encode(&sk_bytes);
-        
-                    json!({ "status": "success", "message": "SK retrieved", "sk": sk_str })
                 },
 
                 None => {
-                    json!({ "status": "error", "message": "Invalid key ID" })
+                    return json!({ "status": "error", "message": "Invalid key ID" })
                 }
             }
+            users_db.save(&users).await.unwrap();
+
+            let mut sk_bytes = Vec::new();
+            sk.serialize(&mut sk_bytes).unwrap();
+            let sk_str = base64::encode(&sk_bytes);
+
+            json!({ "status": "success", "message": "SK retrieved", "sk": sk_str })
         },
 
         _ => {

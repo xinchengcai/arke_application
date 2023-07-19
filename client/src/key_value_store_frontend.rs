@@ -22,7 +22,7 @@ impl KeyValueStore {
 
     /* Write */ 
     pub async fn Write(&self, cipher: Vec<u8>, iv: Vec<u8>, addr: Address, from: Address, id: String) {
-        println!("Write cipher: {:?}", cipher);
+        //println!("Write cipher: {:?}", cipher);
         // Call to create the transaction
         let tx = self
             .0
@@ -37,7 +37,8 @@ impl KeyValueStore {
             )
             .await;
         match tx {
-            Ok(_) => println!("Write completed"),
+            //Ok(_) => println!("Write completed"),
+            Ok(_) => {},
             Err(e) => eprintln!("Failed to Write: {:?}", e),
         }
     }
@@ -60,7 +61,7 @@ impl KeyValueStore {
             ).await;
         match read_result {
             Ok((cipher, iv)) => {
-                println!("Read cipher: {:?}", cipher);
+                //println!("Read cipher: {:?}", cipher);
                 let recover_result = UnlinkableHandshake::decrypt_message(
                     &key,
                     &tag,
@@ -69,9 +70,10 @@ impl KeyValueStore {
                 );
                 match recover_result {
                     Ok(recovered_message) => {
-                        println!("Message: {:?}", recovered_message);   
+                        //println!("Message: {:?}", recovered_message);   
                         let recovered_message_text = String::from_utf8(recovered_message.to_vec()).unwrap();   
-                        println!("Message in text: {:?}", recovered_message_text); 
+                        //println!("{:?}", recovered_message_text); 
+                        Self::print_chatbox(&recovered_message_text);
                     }
                     Err(e) => {
                         eprintln!("Failed to decrypt: {}", e);
@@ -97,7 +99,8 @@ impl KeyValueStore {
             )
             .await;
         match tx {
-            Ok(_) => println!("Read completed"),
+            //Ok(_) => println!("Read completed"),
+            Ok(_) => {},
             Err(e) => {
                 eprintln!("Failed to Read: {:?}", e);
                 return;
@@ -125,5 +128,13 @@ impl KeyValueStore {
             Ok(_) => println!("Delete completed"),
             Err(e) => eprintln!("Failed to Delete: {:?}", e),
         }
+    }
+
+    fn print_chatbox(message: &str) {
+        let border = "-".repeat(message.len() + 4);  // "+4" to account for extra padding
+    
+        println!("{}", border);
+        println!("| {} |", message);
+        println!("{}", border);
     }
 }
