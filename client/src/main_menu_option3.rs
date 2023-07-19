@@ -6,23 +6,28 @@ use crate::key_value_store_frontend::KeyValueStore;
 
 // Libs for arke
 use arke_core::StoreKey;
-
-// Libs for UI
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use serde::{Serialize, Deserialize};
 use std::fs::{OpenOptions, File};
-use std::io::Read;
+use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError};
+use ark_std::io::{Write, Read, Cursor};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Contact {
     nickname: String,
-    id: String,
+    id_string: String,
     store_addr: H160,
     own_write_tag: StoreKey,
     own_read_tag: StoreKey,
-    contact_write_tag: StoreKey,
-    contact_read_tag: StoreKey,
     symmetric_key: Vec<u8>,
+}
+
+
+#[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
+struct MyInfo {
+    nickname: String,
+    id_string: String,
+    eth_addr: String,
 }
 
 pub async fn option3() {
@@ -52,7 +57,7 @@ pub async fn option3() {
     let contacts: Vec<Contact> = serde_json::from_reader(file).unwrap();
     // Convert each Contact to a string representation and collect them into a vector
     let mut ContactsMenu: Vec<String> = contacts.iter()
-        .map(|contact| { format!("ID: {}     nickname: {}", contact.id, contact.nickname)}).collect();
+        .map(|contact| { format!("ID: {}     nickname: {}", contact.id_string, contact.nickname)}).collect();
     ContactsMenu.push("Go back".to_string());
 
     loop {
@@ -67,9 +72,13 @@ pub async fn option3() {
                 // Here, use the index to get the corresponding contact and perform your operations
                 let selected_contact = &contacts[index];
                 // Your operations on selected_contact here
-                let store_addr = selected_contact.store_addr.clone();
-                // Assume Alice has the address 0xF0a16A9A70ddd46ab45ad029bFB749D5bA1a1E8a which has a memonic "abstract" in ganache
-                let deleter_addr = Address::from_str("0xF0a16A9A70ddd46ab45ad029bFB749D5bA1a1E8a").unwrap();
+                let store_addr = selected_contact.store_addr.clone(); 
+                let mut my_info_file = File::open("src/my_info.bin").unwrap();
+                let mut deserialized: Vec<u8> = Vec::new();
+                my_info_file.read_to_end(&mut deserialized).unwrap();
+                let mut cursor = Cursor::new(&deserialized);
+                let my_info = MyInfo::deserialize(&mut cursor).unwrap();
+                let deleter_addr = Address::from_str(&my_info.eth_addr).unwrap();
                 // Delete on the map
                 Store.Delete(store_addr, deleter_addr).await;
 

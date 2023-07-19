@@ -9,30 +9,31 @@ use crate::key_value_store_frontend::KeyValueStore;
 // Libs for arke
 use rand::thread_rng;
 use arke_core::{UnlinkableHandshake, StoreKey};
- 
+use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError};
+use ark_std::io::{Write, Read, Cursor};
+
 // Libs for UI
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use serde::{Serialize, Deserialize};
 use std::fs::OpenOptions;
+use std::fs::File;
 
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Contact {
     nickname: String,
-    id: String,
+    id_string: String,
     store_addr: H160,
     own_write_tag: StoreKey,
     own_read_tag: StoreKey,
-    contact_write_tag: StoreKey,
-    contact_read_tag: StoreKey,
     symmetric_key: Vec<u8>,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 struct MyInfo {
     nickname: String,
-    id: String,
-    eth_addr: String,
+    id_string: String,
+    eth_addr: String
 }
 
 
@@ -63,7 +64,7 @@ pub async fn option1() {
     let contacts: Vec<Contact> = serde_json::from_reader(file).unwrap();
     // Convert each Contact to a string representation and collect them into a vector
     let mut ContactsMenu: Vec<String> = contacts.iter()
-        .map(|contact| { format!("ID: {}     Nickname: {}", contact.id, contact.nickname)}).collect();
+        .map(|contact| { format!("ID string: {}     Nickname: {}", contact.id_string, contact.nickname)}).collect();
     ContactsMenu.push("Go back".to_string());
 
     loop {
@@ -78,17 +79,19 @@ pub async fn option1() {
                 // Here, use the index to get the corresponding contact and perform your operations
                 let selected_contact = &contacts[index];
                 // Your operations on selected_contact here
-                let id = selected_contact.id.clone();
+                let id = selected_contact.id_string.clone();
                 let store_addr = selected_contact.store_addr.clone();
                 let own_write_tag = selected_contact.own_write_tag.clone();
                 let own_read_tag = selected_contact.own_read_tag.clone();
                 let symmetric_key = selected_contact.symmetric_key.clone();
 
                 /* Read */
-                let file = OpenOptions::new()
-                    .read(true)
-                    .open("src/my_info.json").unwrap();
-                let my_info: MyInfo = serde_json::from_reader(file).unwrap();
+                let mut my_info_file = File::open("src/my_info.bin").unwrap();
+                let mut deserialized: Vec<u8> = Vec::new();
+                my_info_file.read_to_end(&mut deserialized).unwrap();
+                let mut cursor = Cursor::new(&deserialized);
+                let my_info = MyInfo::deserialize(&mut cursor).unwrap();
+
                 // Assume Alice has the address 0xF0a16A9A70ddd46ab45ad029bFB749D5bA1a1E8a which has a memonic "abstract" in ganache
                 let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
                 println!("\nReading");

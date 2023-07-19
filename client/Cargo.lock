@@ -1009,6 +1009,7 @@ dependencies = [
  "ark-serialize 0.3.0",
  "ark-std 0.3.0",
  "arke_core",
+ "base64 0.13.1",
  "bincode",
  "dialoguer",
  "hash_functions",
