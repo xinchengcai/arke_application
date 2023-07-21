@@ -41,6 +41,7 @@ struct User {
     eth_addr: String,
     finding: String,
     key_id: String,
+    unread: bool,
 }
 
 pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {

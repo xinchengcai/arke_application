@@ -13,8 +13,16 @@ use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use serde::{Serialize, Deserialize};
 use std::fs::OpenOptions;
 use std::fs::File;
+use tokio::sync::mpsc;
+use std::sync::Arc;
+use tokio::net::TcpStream;
+use tokio::io::{AsyncWriteExt, AsyncReadExt};
+use serde_json::json;
+use std::thread;
+use std::time::Duration;
+use tokio::sync::Mutex;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 struct Contact {
     nickname: String,
     id_string: String,
@@ -33,7 +41,6 @@ struct MyInfo {
 
 fn print_chatbox(message: &str) {
     let border = "-".repeat(message.len() + 4);  // "+4" to account for extra padding
-
     println!("{}", border);
     println!("| {} |", message);
     println!("{}", border);
@@ -48,6 +55,8 @@ pub async fn option1() {
         // Update to match the deployed contract address on ganache
         "0xDD7FE36d9340b502F143a4B43663613b0b29cc1f".to_string(),
         ).await;     
+    let Store = Arc::new(Store);
+    
 
     // Read contacts.json
     let file = OpenOptions::new()
@@ -82,41 +91,133 @@ pub async fn option1() {
         match ContactsMenuSelection {
             // If selected a contact
             index if index < contacts.len() => {
-                let selected_contact = &contacts[index];
+                let selected_contact = contacts[index].clone();
                 let id_string = selected_contact.id_string.clone();
                 let store_addr = selected_contact.store_addr.clone();
                 let own_write_tag = selected_contact.own_write_tag.clone();
                 let own_read_tag = selected_contact.own_read_tag.clone();
                 let symmetric_key = selected_contact.symmetric_key.clone();
 
-                /* Read */
-                // After selecting a contact, first read the store to get the message sent by this contact to me
-                // Read my_info.bin
-                let mut my_info_file = File::open("src/my_info.bin").unwrap();
-                let mut deserialized: Vec<u8> = Vec::new();
-                my_info_file.read_to_end(&mut deserialized).unwrap();
-                // Derialize my_info.bin to read my_info object
-                let mut cursor = Cursor::new(&deserialized);
-                let my_info = MyInfo::deserialize(&mut cursor).unwrap();
-                // Read the store
-                let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                println!("{}", selected_contact.nickname);
-                Store.Read(store_addr, reader_addr, symmetric_key.clone(), own_read_tag).await;     
+                // Start of your program
+                let (tx, mut rx) = mpsc::channel(100);
+                // At the start of the loop where you handle a selected contact...
+                //let (mut read_stream, mut write_stream) = tokio::try_join!(
+                 //   TcpStream::connect("127.0.0.1:8080"),
+                //    TcpStream::connect("127.0.0.1:8080"),
+                //)
+                //.expect("Could not connect to server");
+                let read_stream1 = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
+                let read_stream2 = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
+                let write_stream = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
+                
 
-                /* Write */
-                // After reading the store, write the store to send the message to the selected contact
-                let message = dialoguer::Input::<String>::new()
-                    .with_prompt("What message do you want to send?")
-                    .interact()
-                    .unwrap();
-                let mut rng = thread_rng();
-                let (iv, cipher) =
+                tokio::spawn(async move {
+                    loop {
+                        let message = dialoguer::Input::<String>::new()
+                            //.with_prompt("What message do you want to send? (type q to quit)")
+                            .interact()
+                            .unwrap();
+                        if message == "q" {
+                            break;
+                        }
+                        if tx.send(message).await.is_err() {
+                            break;
+                        }
+                    }
+                });
+
+
+  
+                let Store_clone1 = Arc::clone(&Store);
+                tokio::spawn(async move {
+                    loop {
+                        let mut my_info_file = File::open("src/my_info.bin").unwrap();
+                        let mut deserialized: Vec<u8> = Vec::new();
+                        my_info_file.read_to_end(&mut deserialized).unwrap();
+                        let mut cursor = Cursor::new(&deserialized);
+                        let my_info = MyInfo::deserialize(&mut cursor).unwrap();
+
+                        // Create the request for read unread_flag
+                        let request = json!({
+                            "action": "unread_flag",
+                            "id_string": my_info.id_string,
+                            "rw": "r",
+                        });
+                        // Convert the request to a byte array
+                        let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
+                        // Lock the stream before using it
+                        let mut locked_stream1 = read_stream1.lock().await;
+                        // Write the request to the stream
+                        locked_stream1.write_all(&request_bytes).await.expect("Could not write the stream");
+                        // Create a buffer to read the response into
+                        let mut buf = vec![0; 1024];
+                        let n = locked_stream1.read(&mut buf).await.expect("Could not read the response");
+                        let s = std::str::from_utf8(&buf[..n]).expect("Could not convert to string");
+                        for line in s.split('\n') {
+                            if !line.is_empty() {
+                                // Parse the response
+                                //println!("Server response: {}", s);
+                                let response: serde_json::Value = serde_json::from_slice(&buf[..n]).expect("Could not parse response");
+                                if let Some(flag) = response.get("flag") {
+                                /* Read */
+                                    match flag.as_bool() {
+                                        Some(true) => {
+                                            let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
+                                            let symmetric_key = selected_contact.symmetric_key.clone();
+                                            Store_clone1.Read(store_addr, reader_addr, symmetric_key.clone(), own_read_tag.clone()).await;
+                                            // Lock the stream before using it
+                                            let mut locked_stream2 = read_stream2.lock().await;
+                                            // Create the request for write unread_flag to false
+                                            let request = json!({
+                                                "action": "unread_flag",
+                                                "id_string": my_info.id_string,
+                                                "rw": "wf",
+                                            });
+                                            // Convert the request to a byte array
+                                            let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
+                                            // Write the request to the stream
+                                            locked_stream2.write_all(&request_bytes).await.expect("Could not write the stream");
+                                        },
+                                        Some(false) => {},
+                                        None => {}
+                                    } 
+                                }
+                            }
+                        }
+                        thread::sleep(Duration::from_secs(1));  // sleep for 3 seconds before the next read
+                    }
+                });
+
+                let Store_clone2 = Arc::clone(&Store);
+                while let Some(message) = rx.recv().await {
+                    let mut my_info_file = File::open("src/my_info.bin").unwrap();
+                    let mut deserialized: Vec<u8> = Vec::new();
+                    my_info_file.read_to_end(&mut deserialized).unwrap();
+                    let mut cursor = Cursor::new(&deserialized);
+                    let my_info = MyInfo::deserialize(&mut cursor).unwrap();
+                    /* Write */
+                    let mut rng = thread_rng();
+                    let (iv, cipher) =
                     UnlinkableHandshake::encrypt_message(&symmetric_key, &own_write_tag, message.as_bytes(), &mut rng).unwrap();
-                // Write the store
-                let writer_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                Store.Write(cipher, iv, store_addr, writer_addr, id_string).await;
-                println!("{}", my_info.nickname);
-                print_chatbox(&message);
+                    let writer_addr = Address::from_str(&my_info.eth_addr).unwrap();
+                    Store_clone2.Write(cipher, iv, store_addr, writer_addr, id_string.clone()).await;
+                    
+                    // Create the request for write unread_flag to true
+                    let request = json!({
+                        "action": "unread_flag",
+                        "id_string": selected_contact.id_string,
+                        "rw": "wt",
+                    });
+                    // Convert the request to a byte array
+                    let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
+                    // Lock the stream before using it
+                    let mut locked_stream = write_stream.lock().await;
+                    // Write the request to the stream
+                    locked_stream.write_all(&request_bytes).await.expect("Could not write the stream");
+                    //println!("{}", my_info.nickname);
+                    //print_chatbox(&message);
+                }
+                    
             }
 
             _ => {

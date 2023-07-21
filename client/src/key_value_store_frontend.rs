@@ -9,6 +9,8 @@ use web3::{
 };
 use std::str::FromStr;
 use arke_core::{UnlinkableHandshake, StoreKey,};
+
+#[derive(Clone)]
 pub struct KeyValueStore(Contract<Http>);
 
 impl KeyValueStore {
@@ -39,7 +41,7 @@ impl KeyValueStore {
         match tx {
             //Ok(_) => println!("Write completed"),
             Ok(_) => {},
-            Err(e) => eprintln!("Failed to Write: {:?}", e),
+            Err(e) => {}, //println!("Failed to Write: {:?}", e),
         }
     }
 
@@ -76,13 +78,13 @@ impl KeyValueStore {
                         Self::print_chatbox(&recovered_message_text);
                     }
                     Err(e) => {
-                        eprintln!("Failed to decrypt: {}", e);
+                        //eprintln!("Failed to decrypt: {}", e);
                         return;
                     }
                 }   
             },
             Err(e) => {
-                eprintln!("Failed to show Read result: {}", e);
+                //eprintln!("Failed to show Read result: {}", e);
                 return;
             }
         }
@@ -102,7 +104,7 @@ impl KeyValueStore {
             //Ok(_) => println!("Read completed"),
             Ok(_) => {},
             Err(e) => {
-                eprintln!("Failed to Read: {:?}", e);
+                //eprintln!("Failed to Read: {:?}", e);
                 return;
             }
         }
@@ -131,9 +133,8 @@ impl KeyValueStore {
     }
 
     fn print_chatbox(message: &str) {
-        let border = "-".repeat(message.len() + 4);  // "+4" to account for extra padding
-    
-        println!("{}", border);
+        let border = "+".repeat(message.len() + 4);  // "+4" to account for extra padding
+        println!("\n{}", border);
         println!("| {} |", message);
         println!("{}", border);
     }

@@ -103,6 +103,9 @@ pub async fn option3() {
                 let deleter_addr = Address::from_str(&my_info.eth_addr).unwrap();
                 // Delete on the map of the store
                 Store.Delete(store_addr, deleter_addr).await;
+
+                // Return to the main menu
+                break;
             }
 
             // If selected go back

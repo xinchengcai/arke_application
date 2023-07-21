@@ -23,6 +23,7 @@ struct User {
     eth_addr: String,
     finding: String,
     key_id: String,
+    unread: bool,
 }
 
 
@@ -82,6 +83,7 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
             eth_addr: my_info.eth_addr,
             finding: String::new(),
             key_id: String::new(),
+            unread: false,
         };
         // Connect to the server
         let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
@@ -93,6 +95,7 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
             "eth_addr": new_user.eth_addr,
             "finding": new_user.finding,
             "key_id": new_user.key_id,
+            "unread": new_user.unread,
         });
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;

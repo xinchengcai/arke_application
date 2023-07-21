@@ -39,6 +39,7 @@ struct User {
     eth_addr: String,
     finding: String,
     key_id: String,
+    unread: bool,
 }
 #[derive(Clone)]
 pub struct UserDatabase {
@@ -127,7 +128,8 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
             let eth_addr = request["eth_addr"].as_str().unwrap().to_string();
             let finding = request["finding"].as_str().unwrap().to_string();
             let key_id = request["key_id"].as_str().unwrap().to_string();
-            let user = User { nickname, id_string, eth_addr, finding, key_id};
+            let unread: bool = request["unread"].as_bool().unwrap();
+            let user = User { nickname, id_string, eth_addr, finding, key_id, unread};
 
             // Load users from the JSON file
             let mut users = users_db.load().await.unwrap();
@@ -136,7 +138,7 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
             users.push(user);
             users_db.save(&users).await.unwrap();
 
-            Value::String("User added".into())
+            Value::String("user added".into())
         },
 
 
@@ -145,12 +147,12 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
             if let Some(nickname) = request.get("nickname") {
                 let user_exists = users.iter().find(|user| user.nickname == nickname.as_str().unwrap());
                 if let Some(user) = user_exists {
-                    json!({ "status": "success", "message": "User found", "id_string": user.id_string })
+                    json!({ "status": "success", "message": "user found", "id_string": user.id_string })
                 } else {
-                    json!({ "status": "error", "message": "User not found" })
+                    json!({ "status": "error", "message": "user not found" })
                 }
             } else {
-                json!({ "status": "error", "message": "Missing nickname" })
+                json!({ "status": "error", "message": "missing nickname" })
             }
         },
 
@@ -165,7 +167,7 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
             let user_exists = users.iter().find(|user| user.id_string == bob_id_string_clone);
             if let Some(user) = user_exists {
                 if user.finding == alice_id_string_clone {
-                    json!({ "status": "success", "message": "SKs generated", "key_id": user.key_id })
+                    json!({ "status": "success", "message": "sks generated", "key_id": user.key_id })
                 }
                 else {
                     let key_id = tokio::task::spawn_blocking(move || {
@@ -228,7 +230,8 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
                         );
             
                         let key_pair = sks { alice_sk, bob_sk };
-                        let key_id = Uuid::new_v4().to_string(); // Use UUID to generate a unique key ID
+                        // Use UUID to generate a unique key ID
+                        let key_id = Uuid::new_v4().to_string(); 
                         sks_db.lock().unwrap().insert(key_id.clone(), key_pair);
         
                         key_id
@@ -243,11 +246,11 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
                         }
                     }
                     users_db.save(&users).await.unwrap(); 
-                    json!({ "status": "success", "message": "SKs generated", "key_id": key_id })
+                    json!({ "status": "success", "message": "sks generated", "key_id": key_id })
                 }
             } 
             else {
-                json!({ "status": "error", "message": "SKs not generated"})
+                json!({ "status": "error", "message": "sks not generated"})
             }
         },
 
@@ -284,7 +287,7 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
                 },
 
                 None => {
-                    return json!({ "status": "error", "message": "Invalid key ID" })
+                    return json!({ "status": "error", "message": "invalid key ID" })
                 }
             }
             users_db.save(&users).await.unwrap();
@@ -293,11 +296,46 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>, sks_db: Ar
             sk.serialize(&mut sk_bytes).unwrap();
             let sk_str = base64::encode(&sk_bytes);
 
-            json!({ "status": "success", "message": "SK retrieved", "sk": sk_str })
+            json!({ "status": "success", "message": "sk retrieved", "sk": sk_str })
         },
 
+
+        Some("unread_flag") => {
+            let id_string = request["id_string"].as_str().unwrap().to_string();
+            let rw = request["rw"].as_str().unwrap().to_string();
+            let mut users = users_db.load().await.unwrap();
+            let mut response = json!({ "status": "error", "message": "User not found" }); // Default error message
+            for user in users.iter_mut() {
+                if user.id_string == id_string {
+                    if rw == "r" {
+                        let result = user.unread;
+                        response = json!({ "status": "success", "message": "get flag", "flag": result});
+                        break;
+                    }
+                    else if rw == "wt" {
+                        user.unread = true;
+                        users_db.save(&users).await.unwrap();
+                        response = json!({ "status": "success", "message": "set flag to true"});
+                        break;
+                    }
+                    else if rw == "wf" {
+                        user.unread = false;
+                        users_db.save(&users).await.unwrap();
+                        response = json!({ "status": "success", "message": "set flag to false"});
+                        break;
+                    }
+                    else {
+                        response = json!({ "status": "error", "message": "invalid rw"});
+                        break;
+                    }
+                }
+            }
+            response
+        },
+
+
         _ => {
-            json!({ "status": "error", "message": "Invalid action" })
+            json!({ "status": "error", "message": "invalid action" })
         },
     }
 }
