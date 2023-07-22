@@ -22,6 +22,8 @@ use std::thread;
 use std::time::Duration;
 use tokio::sync::Mutex;
 
+//use crate::tui;
+
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Contact {
     nickname: String,
@@ -40,10 +42,15 @@ struct MyInfo {
 }
 
 fn print_chatbox(message: &str) {
-    let border = "-".repeat(message.len() + 4);  // "+4" to account for extra padding
-    println!("{}", border);
-    println!("| {} |", message);
-    println!("{}", border);
+    let len = message.len();
+    println!("\n");
+    // Print top border
+    println!(" {}", "━".repeat(len + 4));
+    // Print message
+    println!("/  {}  \\", message);
+    // Print bottom border with tail
+    println!(" {}", "━".repeat(len + 4));
+    println!("▼");
 }
 
 pub async fn option1() {   
@@ -91,6 +98,7 @@ pub async fn option1() {
         match ContactsMenuSelection {
             // If selected a contact
             index if index < contacts.len() => {
+                //tui::start_tui();
                 let selected_contact = contacts[index].clone();
                 let id_string = selected_contact.id_string.clone();
                 let store_addr = selected_contact.store_addr.clone();
@@ -114,7 +122,7 @@ pub async fn option1() {
                 tokio::spawn(async move {
                     loop {
                         let message = dialoguer::Input::<String>::new()
-                            //.with_prompt("What message do you want to send? (type q to quit)")
+                            //.with_prompt("What message do you want to send? (type Esc to quit)")
                             .interact()
                             .unwrap();
                         if message == "q" {
@@ -215,7 +223,7 @@ pub async fn option1() {
                     // Write the request to the stream
                     locked_stream.write_all(&request_bytes).await.expect("Could not write the stream");
                     //println!("{}", my_info.nickname);
-                    //print_chatbox(&message);
+                    print_chatbox(&message);
                 }
                     
             }

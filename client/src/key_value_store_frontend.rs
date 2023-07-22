@@ -9,6 +9,9 @@ use web3::{
 };
 use std::str::FromStr;
 use arke_core::{UnlinkableHandshake, StoreKey,};
+use crossterm::terminal;
+
+//use crate::tui;
 
 #[derive(Clone)]
 pub struct KeyValueStore(Contract<Http>);
@@ -76,6 +79,7 @@ impl KeyValueStore {
                         let recovered_message_text = String::from_utf8(recovered_message.to_vec()).unwrap();   
                         //println!("{:?}", recovered_message_text); 
                         Self::print_chatbox(&recovered_message_text);
+                        //tui::start_tui(recovered_message_text);
                     }
                     Err(e) => {
                         //eprintln!("Failed to decrypt: {}", e);
@@ -133,9 +137,17 @@ impl KeyValueStore {
     }
 
     fn print_chatbox(message: &str) {
-        let border = "+".repeat(message.len() + 4);  // "+4" to account for extra padding
-        println!("\n{}", border);
-        println!("| {} |", message);
-        println!("{}", border);
+        let len = message.len();
+        let term_size = terminal::size().unwrap();
+        let padding = term_size.0 as usize - len - 8; // 8 accounts for the additional characters in the bubble
+        println!("\n");
+        // Print top border
+        println!("{:width$} {}", "", "━".repeat(len + 4), width = padding);
+        // Print message
+        println!("{:width$} /  {}  \\", "", message, width = padding-1);
+        // Print bottom border
+        println!("{:width$} {}", "", "━".repeat(len + 4), width = padding);
+        // Print tail, adjusted by the message length
+        println!("{:width$}{:>len$}", "", "▼", width = padding, len = len + 7);
     }
 }
