@@ -719,6 +719,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "ark-bls12-377",
+ "ark-bw6-761",
+ "ark-crypto-primitives",
+ "ark-ec 0.3.0",
+ "ark-ff 0.3.0",
+ "ark-serialize 0.3.0",
+ "ark-std 0.3.0",
+ "arke_core",
+ "base64 0.13.1",
+ "bincode",
+ "crossterm 0.20.0",
+ "cursive",
+ "dialoguer",
+ "hash_functions",
+ "hex",
+ "rand",
+ "secp256k1",
+ "secret_sharing",
+ "serde",
+ "serde_bytes",
+ "serde_json",
+ "thiserror",
+ "tiny-keccak",
+ "tokio",
+ "tracing-subscriber 0.3.17",
+ "web3",
+]
+
+[[package]]
 name = "console"
 version = "0.15.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1190,38 +1222,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a62bc1cf6f830c2ec14a513a9fb124d0a213a629668a4186f329db21fe045652"
 dependencies = [
  "percent-encoding",
-]
-
-[[package]]
-name = "frontend"
-version = "0.1.0"
-dependencies = [
- "ark-bls12-377",
- "ark-bw6-761",
- "ark-crypto-primitives",
- "ark-ec 0.3.0",
- "ark-ff 0.3.0",
- "ark-serialize 0.3.0",
- "ark-std 0.3.0",
- "arke_core",
- "base64 0.13.1",
- "bincode",
- "crossterm 0.20.0",
- "cursive",
- "dialoguer",
- "hash_functions",
- "hex",
- "rand",
- "secp256k1",
- "secret_sharing",
- "serde",
- "serde_bytes",
- "serde_json",
- "thiserror",
- "tiny-keccak",
- "tokio",
- "tracing-subscriber 0.3.17",
- "web3",
 ]
 
 [[package]]

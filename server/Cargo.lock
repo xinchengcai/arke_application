@@ -1282,6 +1282,7 @@ dependencies = [
  "arke_core",
  "base64",
  "rand",
+ "secret_sharing",
  "serde",
  "serde_json",
  "tokio",
