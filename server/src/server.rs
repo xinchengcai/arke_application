@@ -123,7 +123,7 @@ impl Server {
         let (_pp_registration, registrar_secret_key, registrar_public_key) =
             ArkeIdNIKE::setup_registration(&mut rng);
 
-        println!("- Finished setup");
+        println!("✓ Finished setup");
 
         Self { users_db, sks_db, 
                 pp_zk: Arc::new(pp_zk),

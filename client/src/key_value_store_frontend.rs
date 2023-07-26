@@ -131,7 +131,7 @@ impl KeyValueStore {
             )
             .await;
         match tx {
-            Ok(_) => println!("Delete completed"),
+            Ok(_) => println!("✓ Delete completed"),
             Err(e) => eprintln!("Failed to Delete: {:?}", e),
         }
     }

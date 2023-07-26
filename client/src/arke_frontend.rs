@@ -42,7 +42,7 @@ impl Arke {
         alice_computes_shared_seed
             .serialize(&mut alice_seed_bytes)
             .unwrap();
-        println!("- You computes shared seed: {:?}\n", alice_seed_bytes);
+        println!("- You computes shared seed: {:?}", alice_seed_bytes);
 
         /* Arke handshake */
         let rng = &mut thread_rng();
@@ -79,6 +79,7 @@ impl Arke {
     
         UnlinkableHandshake::verify_write_location(&alice_write_tag, &proof, &session_id).unwrap();
 
+        println!("✓ Finished contact discovery"); 
         Arke{
             alice_id_string: alice_id_string,
             bob_id_string: bob_id_string,

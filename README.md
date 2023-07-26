@@ -6,7 +6,7 @@
 2. Install ganache from [https://trufflesuite.com/ganache/](https://trufflesuite.com/ganache/)
 3. Start new workspace in ganache 
 4. Add project with the path arke_application\store\truffle-config.js
-5. Set the server with 
+5. Set the server with <br/>
     HOSTNAME: 127.0.0.1 <br/>
     PORT NUMBER: 9545 <br/>
     NETWORK ID: 5777 <br/>
@@ -14,18 +14,14 @@
 7. In a command prompt, Navigate to store folder and deploy the Ethereum contract of key-value store with the commands below:
    ```sh
    truffle develop
-   ```
-   ```sh
    compile
-   ```
-   ```sh
    migrate
    ```
    Ganache should show that the contract is deployed now.
 8. Keep ganache running
 
 ### Setup for testing the application
-1. Navigate to the client folder, update the contract address on line 63 of the file main_menu_option1.rs to the deployed contract address as shown on ganache.
+1. Navigate to the client folder, update the contract address on line 65 of the file main_menu_option1.rs to the deployed contract address as shown on ganache.
 2. Duplicate the client folder to simulate two users.
 3. In a command prompt, Navigate to client folder and start client for user1 with the command below:
    ```sh

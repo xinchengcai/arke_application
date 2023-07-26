@@ -6,7 +6,9 @@ use web3::types::H160;
 use std::str::FromStr;
 use crate::key_value_store_frontend::KeyValueStore;
 use rand::thread_rng;
-use arke_core::{UnlinkableHandshake, StoreKey};
+use arke_core::{UnlinkableHandshake, UserSecretKey, StoreKey};
+use ark_ec::bls12::Bls12;
+use ark_bls12_377::Parameters;
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use ark_std::io::{Write, Read, Cursor};
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
@@ -38,7 +40,8 @@ struct Contact {
 struct MyInfo {
     nickname: String,
     id_string: String,
-    eth_addr: String
+    eth_addr: String,
+    sk: UserSecretKey<Bls12<Parameters>>,
 }
 
 fn print_chatbox(message: &str) {
