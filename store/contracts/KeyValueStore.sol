@@ -25,7 +25,7 @@ contract KeyValueStore {
 
     function Read(address addr) public view returns(bytes memory, bytes memory){
         bytes memory stored_id = bytes(map[addr].id);
-        require(stored_id.length != 0, "No discovery object found.");
+        require(stored_id.length != 0, "No discovery object found."); 
         return (map[addr].cipher, map[addr].iv);
     }
 

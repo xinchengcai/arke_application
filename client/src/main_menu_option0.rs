@@ -9,6 +9,8 @@ use serde_json::json;
 use tokio::net::TcpStream;
 use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use std::fs::File;
+use std::thread;
+use std::time::Duration;
 
 use arke_core::{ random_id, UserSecretKey, BlindIDCircuitParameters,
                 BLSPublicParameters, IssuerPublicKey, RegistrarPublicKey, 
@@ -42,10 +44,8 @@ struct MyInfo {
 struct User {
     nickname: String,
     id_string: String,
-    eth_addr: String,
-    finding: String,
-    key_id: String,
     unread: bool,
+    session: String,
 }
 
 
@@ -83,84 +83,108 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
             .interact()
             .unwrap();
 
-        println!("About to connect to the server...");
+        println!("About to connect to the server for getting setup details ...");
         let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
-        println!("Successfully connected to the server.");
-    
-        // Create the request for get_pp_zk, 
-        let request = json!({
-            "action": "get_pp_zk",
-        });
-        // Convert the request to a byte array
-        let request_bytes = serde_json::to_vec(&request)?;
-        // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
-        // Create a buffer to read the response into
-        let mut buf = vec![0; 1024]; // change this to a size that suits your needs
-        let mut response = Vec::new();
-        loop {
-            let n = match stream.read(&mut buf).await {
-                Ok(n) if n == 0 => {
-                    break; // end of stream
-                }
-                Ok(n) => {
-                    n
-                },
-                Err(e) => {
-                    eprintln!("An error occurred while reading from the stream: {}", e);
-                    return Err(Box::new(e) as Box<dyn std::error::Error>);
-                }
-            };
-            response.extend_from_slice(&buf[..n]);
-            if n < 1024 {
-                break;
-            }
-        }   
-        // Parse the response
-        let response: serde_json::Value = serde_json::from_slice(&response[..])?;
+        println!("Successfully connected to the server for getting setup details.");
+
         // Initialize pp_zk as None
         let mut pp_zk: Option<BlindIDCircuitParameters<BW6<Parameters761>>> = None;
         // Initialize pp_zk_base64 as None
         let mut pp_zk_base64: Option<String> = None;
-        if let Some(status) = response.get("status") {
-            match status.as_str() {
-                Some("success") => {
-                    if let Some(pp_zk_value) = response.get("pp_zk") {
-                        pp_zk_base64 = Some(pp_zk_value.as_str().unwrap().to_string());
-                    } 
-                },
-                _ => {
-                    println!("Invalid response from server");
-                }
-            }
-        }
-    
-        // Create the request for get_pp_issuance, 
-        let request = json!({
-            "action": "get_pp_issuance",
-        });
-        // Convert the request to a byte array
-        let request_bytes = serde_json::to_vec(&request)?;
-        // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
-        // Create a buffer to read the response into
-        let mut buf = vec![0; 1024];
-        let n = stream.read(&mut buf).await?;
-        // Parse the response
-        let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
         // Initialize pp_issuance as None
         let mut pp_issuance: Option<BLSPublicParameters<Bls12<Parameters>>> = None;
         // Initialize pp_issuance_base64 as None
         let mut pp_issuance_base64: Option<String> = None;
-        if let Some(status) = response.get("status") {
-            match status.as_str() {
-                Some("success") => {
-                    if let Some(pp_issuance_value) = response.get("pp_issuance") {
-                        pp_issuance_base64 = Some(pp_issuance_value.as_str().unwrap().to_string());
-                    } 
-                },
-                _ => {
-                    println!("Invalid response from server");
+        let mut retry_counter = 0;
+        while retry_counter < 5 {
+            // Create the request for get_pp_zk, 
+            let request = json!({
+                "action": "get_pp_zk",
+            });
+            // Convert the request to a byte array
+            let request_bytes = serde_json::to_vec(&request)?;
+            // Write the request to the stream
+            stream.write_all(&request_bytes).await?;
+            // Create a buffer to read the response into
+            let mut buf = vec![0; 1024]; // change this to a size that suits your needs
+            let mut response = Vec::new();
+            loop {
+                let n = match stream.read(&mut buf).await {
+                    Ok(n) if n == 0 => {
+                        break; 
+                    }
+                    Ok(n) => {
+                        n
+                    },
+                    Err(e) => {
+                        eprintln!("An error occurred while reading from the stream: {}", e);
+                        break;
+                    }
+                };
+                response.extend_from_slice(&buf[..n]);
+                if n < 1024 {
+                    break;
+                }
+            }   
+            // Parse the response
+            let response: serde_json::Value = match serde_json::from_slice(&response[..]) {
+                Ok(val) => val,
+                Err(e) => {
+                    eprintln!("Failed to parse the response: {}", e);
+                    retry_counter += 1;
+                    thread::sleep(Duration::from_secs(2));  // sleep for 2 seconds before the next Read
+                    continue;
+                }
+            };
+            // Print the response
+            println!("Response: {}", response);
+            if let Some(status) = response.get("status") {
+                match status.as_str() {
+                    Some("success") => {
+                        if let Some(pp_zk_value) = response.get("pp_zk") {
+                            pp_zk_base64 = Some(pp_zk_value.as_str().unwrap().to_string());
+                        } 
+                    },
+                    _ => {
+                        println!("Invalid response from server");
+                    }
+                }
+            }
+        
+            // Create the request for get_pp_issuance, 
+            let request = json!({
+                "action": "get_pp_issuance",
+            });
+            // Convert the request to a byte array
+            let request_bytes = serde_json::to_vec(&request)?;
+            // Write the request to the stream
+            stream.write_all(&request_bytes).await?;
+            // Create a buffer to read the response into
+            let mut buf = vec![0; 1024];
+            let n = stream.read(&mut buf).await?;
+            // Parse the response
+            let response: serde_json::Value = match serde_json::from_slice(&buf[..n]) {
+                Ok(val) => val,
+                Err(e) => {
+                    eprintln!("Failed to parse the response: {}", e);
+                    retry_counter += 1;
+                    thread::sleep(Duration::from_secs(2));  // sleep for 2 seconds before the next Read
+                    continue;
+                }
+            };
+            // Print the response
+            println!("Response: {}", response);
+            if let Some(status) = response.get("status") {
+                match status.as_str() {
+                    Some("success") => {
+                        if let Some(pp_issuance_value) = response.get("pp_issuance") {
+                            pp_issuance_base64 = Some(pp_issuance_value.as_str().unwrap().to_string());
+                            break;
+                        } 
+                    },
+                    _ => {
+                        println!("Invalid response from server");
+                    }
                 }
             }
         }
@@ -178,6 +202,8 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let n = stream.read(&mut buf).await?;
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
+        // Print the response
+        println!("Response: {}", response);
         // Initialize honest_issuers_secret_keys as None
         let mut honest_issuers_secret_keys: Vec<SecretShare<Fp256<FrParameters>>> = Vec::new();
         // Initialize honest_issuers_secret_keys_base64 as None
@@ -194,7 +220,7 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-    
+
         // Create the request for get_honest_issuers_public_keys, 
         let request = json!({
             "action": "get_honest_issuers_public_keys",
@@ -226,6 +252,8 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         }   
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&response[..])?;
+        // Print the response
+        println!("Response: {}", response);
         // Initialize honest_issuers_public_keys as None
         let mut honest_issuers_public_keys: Vec<IssuerPublicKey<Bls12<Parameters>>> = Vec::new();
         // Initialize honest_issuers_public_keys_base64 as None
@@ -256,6 +284,8 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let n = stream.read(&mut buf).await?;
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
+        // Print the response
+        println!("Response: {}", response);
         // Initialize registrar_secret_key as None
         let mut registrar_secret_key: Option<Fp256<FrParameters>> = None;
         // Initialize registrar_secret_key_base64 as None
@@ -286,6 +316,8 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let n = stream.read(&mut buf).await?;
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
+        // Print the response
+        println!("Response: {}", response);
         // Initialize registrar_public_key as None
         let mut registrar_public_key: Option<RegistrarPublicKey<Bls12<Parameters>>> = None;
         // Initialize registrar_public_key_base64 as None
@@ -304,6 +336,7 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         }
         drop(stream);
     
+        println!("Deserializing...");
         if let Some(pp_zk_base64) = pp_zk_base64 {
             // Decode from base64
             let pp_zk_bytes = base64::decode(&pp_zk_base64).unwrap();
@@ -386,7 +419,7 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let id = UserID::new(&id_string);
         let mut rng = thread_rng();
     
-        println!("- You get your private key:");
+        println!("- Getting your private key:");
         let sk = get_user_secret_key(
             &pp_zk,
             &pp_issuance,
@@ -414,29 +447,26 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let mut my_info_file = BufWriter::new(File::create("src/my_info.bin").unwrap());
         my_info_file.write_all(&serialized).unwrap();
         // Print my_info
-        println!("ID string: {}\nNickname: {}\nEth address: {}\nUser secret key: {:?}",
-                my_info.id_string, my_info.nickname, my_info.eth_addr, my_info.sk);
+        /*println!("ID string: {}\nNickname: {}\nEth address: {}\nUser secret key: {:?}",
+                my_info.id_string, my_info.nickname, my_info.eth_addr, my_info.sk);*/
 
         // Create new user object
         let new_user = User {
             nickname: my_info.nickname,
             id_string: my_info.id_string,
-            eth_addr: my_info.eth_addr,
-            finding: String::new(),
-            key_id: String::new(),
             unread: false,
+            session: String::new(),
         };
-        // Connect to the server
+        println!("About to connect to the server for adding your info to the user database...");
         let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
+        println!("Successfully connected to the server for adding your info to the user database.");
         // Create the request for add_user, i.e. write the new user object to all_users.json in server
         let request = json!({
             "action": "add_user",
             "id_string": new_user.id_string,
             "nickname": new_user.nickname,
-            "eth_addr": new_user.eth_addr,
-            "finding": new_user.finding,
-            "key_id": new_user.key_id,
             "unread": new_user.unread,
+            "session": new_user.session,
         });
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;

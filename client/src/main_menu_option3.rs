@@ -4,12 +4,14 @@ use web3::types::Address;
 use web3::types::H160;
 use std::str::FromStr;
 use crate::key_value_store_frontend::KeyValueStore;
-use arke_core::StoreKey;
+use arke_core::{StoreKey, UserSecretKey};
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
 use serde::{Serialize, Deserialize};
 use std::fs::{OpenOptions, File};
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use ark_std::io::{Write, Read, Cursor};
+use ark_ec::bls12::Bls12;
+use ark_bls12_377::Parameters;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Contact {
@@ -26,6 +28,7 @@ struct MyInfo {
     nickname: String,
     id_string: String,
     eth_addr: String,
+    sk: UserSecretKey<Bls12<Parameters>>,
 }
 
 pub async fn option3() {

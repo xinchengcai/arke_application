@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![allow(unused_imports)]
 #![allow(non_snake_case)]
 
 use web3::types::Address;
@@ -23,6 +24,8 @@ use serde_json::json;
 use std::thread;
 use std::time::Duration;
 use tokio::sync::Mutex;
+use chrono::{Local, Timelike};
+use sha2::{Sha256, Digest};
 
 //use crate::tui;
 
@@ -53,12 +56,13 @@ fn print_chatbox(message: &str) {
     println!("/  {}  \\", message);
     // Print bottom border with tail
     println!(" {}", "━".repeat(len + 4));
-    println!("▼");
+    let local_time = Local::now();
+    println!("▼  {:02}:{:02}:{:02}", local_time.hour(), local_time.minute(), local_time.second());
 }
 
 pub async fn option1() {   
     // Setup the contract and an interface to access it's functionality 
-    let transport = web3::transports::Http::new("HTTP://127.0.0.1:9545").unwrap();
+    let transport = web3::transports::Http::new("HTTP://192.168.1.123:9545").unwrap();
     let web3 = web3::Web3::new(transport);
     let Store = KeyValueStore::new(
         &web3,
@@ -109,14 +113,32 @@ pub async fn option1() {
                 let own_read_tag = selected_contact.own_read_tag.clone();
                 let symmetric_key = selected_contact.symmetric_key.clone();
 
-                // Start of your program
+                //update session
+                let mut my_info_file = File::open("src/my_info.bin").unwrap();
+                let mut deserialized: Vec<u8> = Vec::new();
+                my_info_file.read_to_end(&mut deserialized).unwrap();
+                let mut cursor = Cursor::new(&deserialized);
+                let my_info = MyInfo::deserialize(&mut cursor).unwrap();
+
+                let mut hasher = Sha256::new();
+                hasher.update(id_string.clone());
+                let result = hasher.finalize();
+                let hashed_string = format!("{:x}", result);
+                println!("About to connect to the server...");
+                let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
+                println!("Successfully connected to the server.");
+                // Create the request for find_user, i.e. check whether the person is a user or not
+                let request = json!({
+                    "action": "update_session",
+                    "id_string": my_info.id_string.clone(),
+                    "session": hashed_string.clone(),
+                });
+                // Convert the request to a byte array
+                let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
+                // Write the request to the stream
+                stream.write_all(&request_bytes).await.expect("Could not write the stream");
+
                 let (tx, mut rx) = mpsc::channel(100);
-                // At the start of the loop where you handle a selected contact...
-                //let (mut read_stream, mut write_stream) = tokio::try_join!(
-                 //   TcpStream::connect("127.0.0.1:8080"),
-                //    TcpStream::connect("127.0.0.1:8080"),
-                //)
-                //.expect("Could not connect to server");
                 let read_stream1 = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
                 let read_stream2 = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
                 let write_stream = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
@@ -125,10 +147,24 @@ pub async fn option1() {
                 tokio::spawn(async move {
                     loop {
                         let message = dialoguer::Input::<String>::new()
-                            //.with_prompt("What message do you want to send? (type Esc to quit)")
+                            //.with_prompt("What message do you want to send? (type q to quit)")
                             .interact()
                             .unwrap();
                         if message == "q" {
+                            println!("About to connect to the server...");
+                            let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
+                            println!("Successfully connected to the server.");
+                            // Create the request for find_user, i.e. check whether the person is a user or not
+                            let request = json!({
+                                "action": "update_session",
+                                "id_string": my_info.id_string.clone(),
+                                "session": String::new(),
+                            });
+                            // Convert the request to a byte array
+                            let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
+                            // Write the request to the stream
+                            stream.write_all(&request_bytes).await.expect("Could not write the stream");
+            
                             break;
                         }
                         if tx.send(message).await.is_err() {
@@ -136,7 +172,6 @@ pub async fn option1() {
                         }
                     }
                 });
-
 
   
                 let Store_clone1 = Arc::clone(&Store);
@@ -152,6 +187,7 @@ pub async fn option1() {
                         let request = json!({
                             "action": "unread_flag",
                             "id_string": my_info.id_string,
+                            "session": hashed_string.clone(),
                             "rw": "r",
                         });
                         // Convert the request to a byte array
@@ -170,7 +206,7 @@ pub async fn option1() {
                                 //println!("Server response: {}", s);
                                 let response: serde_json::Value = serde_json::from_slice(&buf[..n]).expect("Could not parse response");
                                 if let Some(flag) = response.get("flag") {
-                                /* Read */
+                                    /* Read */
                                     match flag.as_bool() {
                                         Some(true) => {
                                             let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
@@ -182,6 +218,7 @@ pub async fn option1() {
                                             let request = json!({
                                                 "action": "unread_flag",
                                                 "id_string": my_info.id_string,
+                                                "session": String::new(),
                                                 "rw": "wf",
                                             });
                                             // Convert the request to a byte array
@@ -195,7 +232,7 @@ pub async fn option1() {
                                 }
                             }
                         }
-                        thread::sleep(Duration::from_secs(1));  // sleep for 3 seconds before the next read
+                        thread::sleep(Duration::from_secs(1));  // sleep for 1 seconds before the next Read
                     }
                 });
 
@@ -217,6 +254,7 @@ pub async fn option1() {
                     let request = json!({
                         "action": "unread_flag",
                         "id_string": selected_contact.id_string,
+                        "session": String::new(),
                         "rw": "wt",
                     });
                     // Convert the request to a byte array

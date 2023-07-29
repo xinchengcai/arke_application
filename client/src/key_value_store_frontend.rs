@@ -10,6 +10,7 @@ use web3::{
 use std::str::FromStr;
 use arke_core::{UnlinkableHandshake, StoreKey,};
 use crossterm::terminal;
+use chrono::{Local, Timelike};
 
 //use crate::tui;
 
@@ -131,15 +132,17 @@ impl KeyValueStore {
             )
             .await;
         match tx {
-            Ok(_) => println!("✓ Delete completed"),
-            Err(e) => eprintln!("Failed to Delete: {:?}", e),
+            //Ok(_) => println!("✓ Delete completed"),
+            Ok(_) => {},
+            //Err(e) => eprintln!("Failed to Delete: {:?}", e),
+            Err(_) => {},
         }
     }
 
     fn print_chatbox(message: &str) {
         let len = message.len();
         let term_size = terminal::size().unwrap();
-        let padding = term_size.0 as usize - len - 8; // 8 accounts for the additional characters in the bubble
+        let padding = term_size.0 as usize - len - 7;
         println!("\n");
         // Print top border
         println!("{:width$} {}", "", "━".repeat(len + 4), width = padding);
@@ -147,7 +150,7 @@ impl KeyValueStore {
         println!("{:width$} /  {}  \\", "", message, width = padding-1);
         // Print bottom border
         println!("{:width$} {}", "", "━".repeat(len + 4), width = padding);
-        // Print tail, adjusted by the message length
-        println!("{:width$}{:>len$}", "", "▼", width = padding, len = len + 7);
+        let local_time = Local::now();
+        println!("{:width$} {:02}:{:02}:{:02}  ▼", "", local_time.hour(), local_time.minute(), local_time.second(), width = term_size.0 as usize -13);
     }
 }

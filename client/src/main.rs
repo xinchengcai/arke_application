@@ -22,11 +22,11 @@ use main_menu_option3::option3;
 #[tokio::main]
 pub async fn main() -> std::io::Result<()> {
     let MainMenu = &[
-        "My info",
-        "Contacts",
-        "Contact Discovery",
-        "Delete Contact",
-        "Exit",
+        "[My info]",
+        "[Contacts]",
+        "[Contact Discovery]",
+        "[Delete Contact]",
+        "[Exit]",
     ];
 
     // Display the main menu
@@ -40,15 +40,17 @@ pub async fn main() -> std::io::Result<()> {
 
         match MainMenuSelection {
             0 => {
-                // Print my info
+                // Initialize my info if not registered
+                // Print my info if registered
                 option0().await; 
             }
             1 => {
                 // Print the contact book
+                // Select a contact in the contact book to chat with that contact
                 option1().await; 
             }
             2 => {
-                // Perform contact discovery with an application user not in the contact book
+                // Perform contact discovery with an application user who's not in the contact book
                 option2().await; 
             }
             3 => {

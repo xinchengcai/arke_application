@@ -45,15 +45,13 @@ struct Contact {
 struct User {
     nickname: String,
     id_string: String,
-    eth_addr: String,
-    finding: String,
-    key_id: String,
     unread: bool,
+    session: String,
 }
 
 pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
     let want_contact_discovery_nickname = dialoguer::Input::<String>::new()
-        .with_prompt("Who do you want to make contact discovery?")
+        .with_prompt("Who do you want to add to your contact book?")
         .interact()
         .unwrap();
     let mut want_contact_discovery_id_string = String::new();
@@ -84,9 +82,9 @@ pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
         // If the person is not in my contact book
         None => {
             // Connect to the server
-            println!("About to connect to the server...");
+            println!("About to connect to the server for finding the user in user database...");
             let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
-            println!("Successfully connected to the server.");
+            println!("Successfully connected to the server for finding the user in user database.");
             // Create the request for find_user, i.e. check whether the person is a user or not
             let request = json!({
                 "action": "find_user",
@@ -108,7 +106,7 @@ pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
                 match status.as_str() {
                     // If the person is a user
                     Some("success") => {
-                        println!("User found");
+                        println!("✓ User found");
                         if let Some(id_string) = response.get("id_string") {
                             // Get the id_string of the user
                             want_contact_discovery_id_string = id_string.as_str().unwrap().to_string();
@@ -148,7 +146,6 @@ pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
 
     // Perform the rest part of id-nike (i.e. locally derive the shared seed) 
     // and the entire handshake (i.e. locally derive symmetric key from shared seed, locally derive write and read tag )
-    
     let crypto = Arke::id_nike_and_handshake(my_info.id_string.clone(), 
                                     want_contact_discovery_id_string.clone(), 
                                                 my_info.sk.clone());
