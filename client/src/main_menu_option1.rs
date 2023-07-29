@@ -62,7 +62,7 @@ fn print_chatbox(message: &str) {
 
 pub async fn option1() {   
     // Setup the contract and an interface to access it's functionality 
-    let transport = web3::transports::Http::new("HTTP://192.168.1.123:9545").unwrap();
+    let transport = web3::transports::Http::new("HTTP://127.0.0.1:9545").unwrap();
     let web3 = web3::Web3::new(transport);
     let Store = KeyValueStore::new(
         &web3,
