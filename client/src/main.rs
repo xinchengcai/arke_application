@@ -22,11 +22,11 @@ use main_menu_option3::option3;
 #[tokio::main]
 pub async fn main() -> std::io::Result<()> {
     let MainMenu = &[
-        "[My info]",
-        "[Contacts]",
-        "[Contact Discovery]",
-        "[Delete Contact]",
-        "[Exit]",
+        "My info",
+        "Contacts",
+        "Contact Discovery",
+        "Delete Contact",
+        "Exit",
     ];
 
     // Display the main menu

@@ -9,8 +9,7 @@ use serde_json::json;
 use tokio::net::TcpStream;
 use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use std::fs::File;
-use std::thread;
-use std::time::Duration;
+use tokio::time::Duration;
 
 use arke_core::{ random_id, UserSecretKey, BlindIDCircuitParameters,
                 BLSPublicParameters, IssuerPublicKey, RegistrarPublicKey, 
@@ -95,96 +94,93 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let mut pp_issuance: Option<BLSPublicParameters<Bls12<Parameters>>> = None;
         // Initialize pp_issuance_base64 as None
         let mut pp_issuance_base64: Option<String> = None;
-        let mut retry_counter = 0;
-        while retry_counter < 5 {
-            // Create the request for get_pp_zk, 
-            let request = json!({
-                "action": "get_pp_zk",
-            });
-            // Convert the request to a byte array
-            let request_bytes = serde_json::to_vec(&request)?;
-            // Write the request to the stream
-            stream.write_all(&request_bytes).await?;
-            // Create a buffer to read the response into
-            let mut buf = vec![0; 1024]; // change this to a size that suits your needs
-            let mut response = Vec::new();
-            loop {
-                let n = match stream.read(&mut buf).await {
-                    Ok(n) if n == 0 => {
-                        break; 
-                    }
-                    Ok(n) => {
-                        n
-                    },
-                    Err(e) => {
-                        eprintln!("An error occurred while reading from the stream: {}", e);
-                        break;
-                    }
-                };
-                response.extend_from_slice(&buf[..n]);
-                if n < 1024 {
+
+        // Create the request for get_pp_zk, 
+        let request = json!({
+            "action": "get_pp_zk",
+        });
+        // Convert the request to a byte array
+        let request_bytes = serde_json::to_vec(&request)?;
+        // Write the request to the stream
+        stream.write_all(&request_bytes).await?;
+        // Create a buffer to read the response into
+        let mut buf = vec![0; 1024]; 
+        let mut response = Vec::new();
+        loop {
+            let timeout = tokio::time::sleep(Duration::from_secs(5));
+            tokio::pin!(timeout);
+            tokio::select! {
+                _ = &mut timeout => {
+                    eprintln!("Timeout while reading from the stream");
                     break;
-                }
-            }   
-            // Parse the response
-            let response: serde_json::Value = match serde_json::from_slice(&response[..]) {
-                Ok(val) => val,
-                Err(e) => {
-                    eprintln!("Failed to parse the response: {}", e);
-                    retry_counter += 1;
-                    thread::sleep(Duration::from_secs(2));  // sleep for 2 seconds before the next Read
-                    continue;
-                }
-            };
-            // Print the response
-            println!("Response: {}", response);
-            if let Some(status) = response.get("status") {
-                match status.as_str() {
-                    Some("success") => {
-                        if let Some(pp_zk_value) = response.get("pp_zk") {
-                            pp_zk_base64 = Some(pp_zk_value.as_str().unwrap().to_string());
-                        } 
-                    },
-                    _ => {
-                        println!("Invalid response from server");
+                },
+                result = stream.read(&mut buf) => {
+                    match result {
+                        Ok(n) if n == 0 => break,
+                        Ok(n) => {
+                            response.extend_from_slice(&buf[..n]);
+                        },
+                        Err(e) => {
+                            eprintln!("An error occurred while reading from the stream: {}", e);
+                            break;
+                        }
                     }
+                },
+            };
+        }
+        // Parse the response
+        let response: serde_json::Value = match serde_json::from_slice(&response[..]) {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("Failed to parse the response: {}", e);
+                return Err(Box::new(e) as Box<dyn std::error::Error>);
+            }
+        };
+        // Print the response
+        println!("Response: {}", response);
+        if let Some(status) = response.get("status") {
+            match status.as_str() {
+                Some("success") => {
+                    if let Some(pp_zk_value) = response.get("pp_zk") {
+                        pp_zk_base64 = Some(pp_zk_value.as_str().unwrap().to_string());
+                    } 
+                },
+                _ => {
+                    println!("Invalid response from server");
                 }
             }
-        
-            // Create the request for get_pp_issuance, 
-            let request = json!({
-                "action": "get_pp_issuance",
-            });
-            // Convert the request to a byte array
-            let request_bytes = serde_json::to_vec(&request)?;
-            // Write the request to the stream
-            stream.write_all(&request_bytes).await?;
-            // Create a buffer to read the response into
-            let mut buf = vec![0; 1024];
-            let n = stream.read(&mut buf).await?;
-            // Parse the response
-            let response: serde_json::Value = match serde_json::from_slice(&buf[..n]) {
-                Ok(val) => val,
-                Err(e) => {
-                    eprintln!("Failed to parse the response: {}", e);
-                    retry_counter += 1;
-                    thread::sleep(Duration::from_secs(2));  // sleep for 2 seconds before the next Read
-                    continue;
-                }
-            };
-            // Print the response
-            println!("Response: {}", response);
-            if let Some(status) = response.get("status") {
-                match status.as_str() {
-                    Some("success") => {
-                        if let Some(pp_issuance_value) = response.get("pp_issuance") {
-                            pp_issuance_base64 = Some(pp_issuance_value.as_str().unwrap().to_string());
-                            break;
-                        } 
-                    },
-                    _ => {
-                        println!("Invalid response from server");
-                    }
+        }
+
+        // Create the request for get_pp_issuance, 
+        let request = json!({
+            "action": "get_pp_issuance",
+        });
+        // Convert the request to a byte array
+        let request_bytes = serde_json::to_vec(&request)?;
+        // Write the request to the stream
+        stream.write_all(&request_bytes).await?;
+        // Create a buffer to read the response into
+        let mut buf = vec![0; 1024];
+        let n = stream.read(&mut buf).await?;
+        // Parse the response
+        let response: serde_json::Value = match serde_json::from_slice(&buf[..n]) {
+            Ok(val) => val,
+            Err(e) => {
+                eprintln!("Failed to parse the response: {}", e);
+                return Err(Box::new(e) as Box<dyn std::error::Error>);
+            }
+        };
+        // Print the response
+        println!("Response: {}", response);
+        if let Some(status) = response.get("status") {
+            match status.as_str() {
+                Some("success") => {
+                    if let Some(pp_issuance_value) = response.get("pp_issuance") {
+                        pp_issuance_base64 = Some(pp_issuance_value.as_str().unwrap().to_string());
+                    } 
+                },
+                _ => {
+                    println!("Invalid response from server");
                 }
             }
         }
@@ -233,23 +229,27 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let mut buf = vec![0; 1024]; // change this to a size that suits your needs
         let mut response = Vec::new();
         loop {
-            let n = match stream.read(&mut buf).await {
-                Ok(n) if n == 0 => {
-                    break; // end of stream
-                }
-                Ok(n) => {
-                    n
+            let timeout = tokio::time::sleep(Duration::from_secs(5));
+            tokio::pin!(timeout);
+            tokio::select! {
+                _ = &mut timeout => {
+                    eprintln!("Timeout while reading from the stream");
+                    break;
                 },
-                Err(e) => {
-                    eprintln!("An error occurred while reading from the stream: {}", e);
-                    return Err(Box::new(e) as Box<dyn std::error::Error>);
-                }
+                result = stream.read(&mut buf) => {
+                    match result {
+                        Ok(n) if n == 0 => break,
+                        Ok(n) => {
+                            response.extend_from_slice(&buf[..n]);
+                        },
+                        Err(e) => {
+                            eprintln!("An error occurred while reading from the stream: {}", e);
+                            break;
+                        }
+                    }
+                },
             };
-            response.extend_from_slice(&buf[..n]);
-            if n < 1024 {
-                break;
-            }
-        }   
+        }
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&response[..])?;
         // Print the response
@@ -336,7 +336,7 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         }
         drop(stream);
     
-        println!("Deserializing...");
+        println!("- Deserializing");
         if let Some(pp_zk_base64) = pp_zk_base64 {
             // Decode from base64
             let pp_zk_bytes = base64::decode(&pp_zk_base64).unwrap();
