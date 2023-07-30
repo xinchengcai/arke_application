@@ -105,7 +105,6 @@ pub async fn option1() {
         match ContactsMenuSelection {
             // If selected a contact
             index if index < contacts.len() => {
-                //tui::start_tui();
                 let selected_contact = contacts[index].clone();
                 let id_string = selected_contact.id_string.clone();
                 let store_addr = selected_contact.store_addr.clone();
