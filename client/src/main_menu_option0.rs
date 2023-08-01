@@ -1,7 +1,8 @@
 #![allow(unused_variables)]
+#![allow(unused_assignments)]
 
-use rand::{distributions::Alphanumeric, CryptoRng, thread_rng, Rng};
-const IDENTIFIER_STRING_LENGTH: usize = 8;
+use rand::{CryptoRng, thread_rng, Rng};
+//const IDENTIFIER_STRING_LENGTH: usize = 8;
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use ark_std::io::{Write, Read, BufWriter, Cursor};
 use serde::{Serialize, Deserialize};
@@ -11,7 +12,7 @@ use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use std::fs::File;
 use tokio::time::Duration;
 
-use arke_core::{ random_id, UserSecretKey, BlindIDCircuitParameters,
+use arke_core::{ UserSecretKey, BlindIDCircuitParameters,
                 BLSPublicParameters, IssuerPublicKey, RegistrarPublicKey, 
                 UserID, IssuancePublicParameters, IssuerSecretKey, 
                 ThresholdObliviousIdNIKE, RegistrarSecretKey, BlindPartialSecretKey,
@@ -25,6 +26,8 @@ use ark_bw6_761::BW6_761;
 use ark_bls12_377::{Bls12_377, Parameters};
 use secret_sharing::shamir_secret_sharing::SecretShare;
 type ArkeIdNIKE = ThresholdObliviousIdNIKE<Bls12_377, BW6_761>;
+/// Length of the id string
+const IDENTIFIER_STRING_LENGTH: usize = 8;
 /// Maximum number of dishonest key-issuing authorities that the system can tolerate
 const THRESHOLD: usize = 3;
 /// Domain identifier for the registration authority of this example
@@ -33,7 +36,6 @@ const REGISTRAR_DOMAIN: &'static [u8] = b"registration";
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 struct MyInfo {
-    nickname: String,
     id_string: String,
     eth_addr: String,
     sk: UserSecretKey<Bls12<Parameters>>,
@@ -41,7 +43,6 @@ struct MyInfo {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct User {
-    nickname: String,
     id_string: String,
     unread: bool,
     session: String,
@@ -63,24 +64,75 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let mut cursor = Cursor::new(&deserialized);
         let my_info = MyInfo::deserialize(&mut cursor).unwrap();
         // Print my_info
-        println!("ID string: {}\nNickname: {}\nEth address: {}\nUser secret key: {:?}",
-                my_info.id_string, my_info.nickname, my_info.eth_addr, my_info.sk);
+        println!("ID string: {}\nEth address: {}\nUser secret key: {:?}",
+                my_info.id_string, my_info.eth_addr, my_info.sk);
     }
 
     // If empty, I am not user, create new user info
     else { 
-        // Generate new id_string
-        let id_string = random_id!(IDENTIFIER_STRING_LENGTH);
         // Ask my eth_addr
         let eth_addr = dialoguer::Input::<String>::new()
             .with_prompt("What is your eth address")
             .interact()
             .unwrap();
-        // Ask my nickname
-        let nickname = dialoguer::Input::<String>::new()
-            .with_prompt("What nickname would you like")
+        // Ask my id_string
+        let mut id_string = String::new();
+        loop {
+            id_string = dialoguer::Input::<String>::new()
+            .with_prompt("What ID would you like")
             .interact()
             .unwrap();
+
+            if id_string.chars().all(char::is_alphanumeric) == false {
+                println!("Your ID has to be alphanumeric!");
+                continue;
+            }
+            if id_string.len() != IDENTIFIER_STRING_LENGTH {
+                println!("Your ID has to be {} digits long!", IDENTIFIER_STRING_LENGTH);
+                continue;
+            }
+
+            println!("About to connect to the server for checking uniqueness of the ID ...");
+            let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
+            println!("Successfully connected to the server for for checking uniqueness of the ID.");
+            // Create the request for update_session
+            let request = json!({
+                "action": "check_uniqueness",
+                "id_string": id_string.clone(),
+            });
+            // Convert the request to a byte array
+            let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
+            // Write the request to the stream
+            stream.write_all(&request_bytes).await.expect("Could not write the stream");
+            // Create a buffer to read the response into
+            let mut buf = vec![0; 1024];
+            let n = stream.read(&mut buf).await?;
+            // Parse the response
+            let response: serde_json::Value = match serde_json::from_slice(&buf[..n]) {
+                Ok(val) => val,
+                Err(e) => {
+                    eprintln!("Failed to parse the response: {}", e);
+                    return Err(Box::new(e) as Box<dyn std::error::Error>);
+                }
+            };
+            // Print the response
+            println!("Response: {}", response);
+            if let Some(status) = response.get("status") {
+                match status.as_str() {
+                    Some("success") => {
+                        break;
+                    },
+                    Some("error") => {
+                        println!("This ID is taken!");
+                        continue;
+                    },
+                    _ => {
+                        println!("Invalid response from server");
+                    }
+                }
+            }
+        }
+        
 
         println!("About to connect to the server for getting setup details ...");
         let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
@@ -435,7 +487,6 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
 
         // Create new my_info object
         let my_info = MyInfo {
-            nickname: nickname,
             id_string: id_string,
             eth_addr: eth_addr,
             sk: sk,
@@ -446,13 +497,9 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         // Write to my_info.bin
         let mut my_info_file = BufWriter::new(File::create("src/my_info.bin").unwrap());
         my_info_file.write_all(&serialized).unwrap();
-        // Print my_info
-        /*println!("ID string: {}\nNickname: {}\nEth address: {}\nUser secret key: {:?}",
-                my_info.id_string, my_info.nickname, my_info.eth_addr, my_info.sk);*/
 
         // Create new user object
         let new_user = User {
-            nickname: my_info.nickname,
             id_string: my_info.id_string,
             unread: false,
             session: String::new(),
@@ -464,7 +511,6 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let request = json!({
             "action": "add_user",
             "id_string": new_user.id_string,
-            "nickname": new_user.nickname,
             "unread": new_user.unread,
             "session": new_user.session,
         });

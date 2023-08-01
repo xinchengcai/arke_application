@@ -12,10 +12,8 @@ use crate::arke_frontend::Arke;
 use ark_serialize::{CanonicalSerialize, CanonicalDeserialize, SerializationError};
 use ark_std::io::{Write, Read, Cursor};
 use serde::{Serialize, Deserialize};
-use serde_json::json;
-use tokio::net::TcpStream;
 use tokio::fs::OpenOptions;
-use tokio::io::{AsyncWriteExt, AsyncReadExt};
+use tokio::io::AsyncReadExt;
 use std::fs::File;
 type ArkeIdNIKE = ThresholdObliviousIdNIKE<Bls12_377, BW6_761>;
 /// Maximum number of dishonest key-issuing authorities that the system can tolerate
@@ -25,7 +23,6 @@ const REGISTRAR_DOMAIN: &'static [u8] = b"registration";
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 struct MyInfo {
-    nickname: String,
     id_string: String,
     eth_addr: String,
     sk: UserSecretKey<Bls12<Parameters>>,
@@ -33,7 +30,6 @@ struct MyInfo {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Contact {
-    nickname: String,
     id_string: String,
     store_addr: H160,
     own_write_tag: StoreKey,
@@ -43,18 +39,16 @@ struct Contact {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct User {
-    nickname: String,
     id_string: String,
     unread: bool,
     session: String,
 }
 
 pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
-    let want_contact_discovery_nickname = dialoguer::Input::<String>::new()
+    let want_contact_discovery_id_string = dialoguer::Input::<String>::new()
         .with_prompt("Who do you want to add to your contact book?")
         .interact()
         .unwrap();
-    let mut want_contact_discovery_id_string = String::new();
 
     // Read contacts.json
     let mut file = OpenOptions::new()
@@ -72,67 +66,15 @@ pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
     };
     
     // Check whether the person I want to make contact discovery is in my contact book
-    let contact = contacts.iter().find(|&c| c.nickname == want_contact_discovery_nickname);
+    let contact = contacts.iter().find(|&c| c.id_string == want_contact_discovery_id_string);
     match contact {
         // If the person is in my contact book already
         Some(contact) => {
-            println!("{:?} is already in your contacts", contact.nickname);
+            println!("{:?} is already in your contacts", contact.id_string);
             return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "User already in contacts")));
         },
         // If the person is not in my contact book
-        None => {
-            // Connect to the server
-            println!("About to connect to the server for finding the user in user database...");
-            let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
-            println!("Successfully connected to the server for finding the user in user database.");
-            // Create the request for find_user, i.e. check whether the person is a user or not
-            let request = json!({
-                "action": "find_user",
-                "nickname": want_contact_discovery_nickname,
-            });
-            // Convert the request to a byte array
-            let request_bytes = serde_json::to_vec(&request)?;
-            // Write the request to the stream
-            stream.write_all(&request_bytes).await?;
-            // Create a buffer to read the response into
-            let mut buf = vec![0; 1024];
-            let n = stream.read(&mut buf).await?;
-            // Parse the response
-            let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
-            // Print the response
-            println!("Response: {}", response);
-            // Process the response based on the status field
-            if let Some(status) = response.get("status") {
-                match status.as_str() {
-                    // If the person is a user
-                    Some("success") => {
-                        println!("✓ User found");
-                        if let Some(id_string) = response.get("id_string") {
-                            // Get the id_string of the user
-                            want_contact_discovery_id_string = id_string.as_str().unwrap().to_string();
-                            // Close the stream
-                            drop(stream);  
-                        }
-                    },
-                    // If the person is not a user
-                    Some("error") => {
-                        if let Some(message) = response.get("message") {
-                            println!("Error: {}", message.as_str().unwrap());
-                        }   
-                        // Close the stream
-                        drop(stream);  
-                        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "User not found")));
-                    },
-                    // If the server failed to respond
-                    _ => {
-                        println!("Invalid response from server");
-                        // Close the stream
-                        drop(stream);  
-                        return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Invalid response from server")));
-                    },
-                }
-            }
-        },
+        None => {},
     };
 
 
@@ -166,7 +108,6 @@ pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
 
     // Create new contact object
     let new_contact = Contact {
-        nickname: want_contact_discovery_nickname.clone(), 
         id_string: want_contact_discovery_id_string.clone(),
         store_addr: store_addr.clone(),
         own_write_tag: own_write_tag.clone(),

@@ -15,7 +15,6 @@ use ark_bls12_377::Parameters;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Contact {
-    nickname: String,
     id_string: String,
     store_addr: H160,
     own_write_tag: StoreKey,
@@ -25,7 +24,6 @@ struct Contact {
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 struct MyInfo {
-    nickname: String,
     id_string: String,
     eth_addr: String,
     sk: UserSecretKey<Bls12<Parameters>>,
@@ -59,7 +57,7 @@ pub async fn option3() {
     let contacts: Vec<Contact> = serde_json::from_reader(file).unwrap();
     // Convert each contact to a string representation and collect them into a vector
     let mut ContactsMenu: Vec<String> = contacts.iter()
-        .map(|contact| { format!("ID: {}     nickname: {}", contact.id_string, contact.nickname)}).collect();
+        .map(|contact| { format!("ID string: {}", contact.id_string)}).collect();
     // Add go back to the end of the vector
     ContactsMenu.push("Go back".to_string());
 

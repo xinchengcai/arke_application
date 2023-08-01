@@ -27,11 +27,9 @@ use tokio::sync::Mutex;
 use chrono::{Local, Timelike};
 use sha2::{Sha256, Digest};
 
-//use crate::tui;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 struct Contact {
-    nickname: String,
     id_string: String,
     store_addr: H160,
     own_write_tag: StoreKey,
@@ -41,7 +39,6 @@ struct Contact {
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
 struct MyInfo {
-    nickname: String,
     id_string: String,
     eth_addr: String,
     sk: UserSecretKey<Bls12<Parameters>>,
@@ -90,7 +87,7 @@ pub async fn option1() {
     let contacts: Vec<Contact> = serde_json::from_reader(file).unwrap();
     // Convert each contact to a string representation and collect them into a vector
     let mut ContactsMenu: Vec<String> = contacts.iter()
-        .map(|contact| { format!("ID string: {}     Nickname: {}", contact.id_string, contact.nickname)}).collect();
+        .map(|contact| { format!("ID string: {}", contact.id_string)}).collect();
     // Add go back to the end of the vector
     ContactsMenu.push("Go back".to_string());
 
@@ -126,7 +123,7 @@ pub async fn option1() {
                 println!("About to connect to the server...");
                 let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
                 println!("Successfully connected to the server.");
-                // Create the request for find_user, i.e. check whether the person is a user or not
+                // Create the request for update_session
                 let request = json!({
                     "action": "update_session",
                     "id_string": my_info.id_string.clone(),
@@ -150,10 +147,10 @@ pub async fn option1() {
                             .interact()
                             .unwrap();
                         if message == "q" {
-                            println!("About to connect to the server...");
+                            println!("About to connect to the server for estabilishing session...");
                             let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
-                            println!("Successfully connected to the server.");
-                            // Create the request for find_user, i.e. check whether the person is a user or not
+                            println!("Successfully connected to the server for estabilishing session.");
+                            // Create the request for update_session
                             let request = json!({
                                 "action": "update_session",
                                 "id_string": my_info.id_string.clone(),

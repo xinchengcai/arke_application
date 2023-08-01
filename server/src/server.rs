@@ -2,6 +2,7 @@
 #![allow(non_camel_case_types)]
 #![allow(private_in_public)]
 #![allow(unused_imports)]
+#![allow(unused_variables)]
 
 use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
@@ -18,7 +19,6 @@ use ark_ec::bls12::Bls12;
 use arke_core::{  UserID, ThresholdObliviousIdNIKE, BlindIDCircuitParameters, 
     IssuerPublicKey, RegistrarPublicKey, BLSPublicParameters, random_id,
 };
-const IDENTIFIER_STRING_LENGTH: usize = 8;
 use ark_serialize::CanonicalSerialize;
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use ark_std::One;
@@ -30,6 +30,8 @@ use ark_bls12_377::FrParameters;
 use ark_ff::Fp256;
 use secret_sharing::shamir_secret_sharing::SecretShare;
 type ArkeIdNIKE = ThresholdObliviousIdNIKE<Bls12_377, BW6_761>;
+/// Length of the id string
+const IDENTIFIER_STRING_LENGTH: usize = 8;
 /// Total number of participants
 const NUMBER_OF_PARTICIPANTS: usize = 10;
 /// Maximum number of dishonest key-issuing authorities that the system can tolerate
@@ -39,7 +41,6 @@ const REGISTRAR_DOMAIN: &'static [u8] = b"registration";
 
 #[derive(Serialize, Deserialize, Debug)]
 struct User {
-    nickname: String,
     id_string: String,
     unread: bool,
     session: String,
@@ -181,11 +182,10 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>,
                         registrar_public_key: &Arc<RegistrarPublicKey<Bls12<Parameters>>>,) -> Value {
     match request["action"].as_str() {
         Some("add_user") => {
-            let nickname = request["nickname"].as_str().unwrap().to_string();
             let id_string = request["id_string"].as_str().unwrap().to_string();
             let unread: bool = request["unread"].as_bool().unwrap();
             let session = request["session"].as_str().unwrap().to_string();
-            let user = User { nickname, id_string, unread, session};
+            let user = User {id_string, unread, session};
 
             // Load users from the JSON file
             let mut users = users_db.load().await.unwrap();
@@ -198,17 +198,17 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>,
         },
 
 
-        Some("find_user") => {
+        Some("check_uniqueness") => {
             let users = users_db.load().await.unwrap();
-            if let Some(nickname) = request.get("nickname") {
-                let user_exists = users.iter().find(|user| user.nickname == nickname.as_str().unwrap());
+            if let Some(id_string) = request.get("id_string") {
+                let user_exists = users.iter().find(|user| user.id_string == id_string.as_str().unwrap());
                 if let Some(user) = user_exists {
-                    json!({ "status": "success", "message": "✓ User found", "id_string": user.id_string })
+                    json!({ "status": "error", "message": "User with same ID found"})
                 } else {
-                    json!({ "status": "error", "message": "user not found" })
+                    json!({ "status": "success", "message": "✓ No user with same ID"})
                 }
             } else {
-                json!({ "status": "error", "message": "missing nickname" })
+                json!({ "status": "error", "message": "missing ID" })
             }
         },
 
@@ -298,9 +298,9 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>,
             for key in &honest_issuers_secret_keys_vec {
                 // Create a Vec<u8> to hold the serialized version of each key
                 let mut serialized_key = Vec::new();
-                // Serialize each key into the `serialized_key` buffer
+                // Serialize each key into the serialized_key buffer
                 key.serialize(&mut serialized_key).unwrap();
-                // Extend our `serialized_keys` Vec with each `serialized_key`
+                // Extend serialized_keys Vec with each serialized_key
                 serialized_keys.extend(serialized_key);
             }
             let honest_issuers_secret_keys_str = base64::encode(&serialized_keys);  
@@ -310,6 +310,7 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>,
                  })
         },
 
+
         Some("get_honest_issuers_public_keys") => {
             let honest_issuers_public_keys_vec = Arc::try_unwrap(honest_issuers_public_keys.clone()).unwrap_or_else(|shared_vec| (*shared_vec).clone());
             let mut serialized_keys = Vec::new();
@@ -317,9 +318,9 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>,
             for key in &honest_issuers_public_keys_vec {
                 // Create a Vec<u8> to hold the serialized version of each key
                 let mut serialized_key = Vec::new();
-                // Serialize each key into the `serialized_key` buffer
+                // Serialize each key into the serialized_key buffer
                 key.serialize(&mut serialized_key).unwrap();
-                // Extend our `serialized_keys` Vec with each `serialized_key`
+                // Extend serialized_keys Vec with each serialized_key
                 serialized_keys.extend(serialized_key);
             }
             let honest_issuers_public_keys_str = base64::encode(&serialized_keys);  
