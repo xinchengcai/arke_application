@@ -6,7 +6,7 @@ use web3::types::Address;
 use web3::types::H160;
 use std::str::FromStr;
 use crate::key_value_store_frontend::KeyValueStore;
-use rand::thread_rng;
+use rand::{distributions::Alphanumeric, Rng, thread_rng};
 use arke_core::{UnlinkableHandshake, UserSecretKey, StoreKey};
 use ark_ec::bls12::Bls12;
 use ark_bls12_377::Parameters;
@@ -25,7 +25,6 @@ use std::thread;
 use std::time::Duration;
 use tokio::sync::Mutex;
 use chrono::{Local, Timelike};
-use sha2::{Sha256, Digest};
 
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -109,25 +108,27 @@ pub async fn option1() {
                 let own_read_tag = selected_contact.own_read_tag.clone();
                 let symmetric_key = selected_contact.symmetric_key.clone();
 
-                //update session
+                // update session
                 let mut my_info_file = File::open("src/my_info.bin").unwrap();
                 let mut deserialized: Vec<u8> = Vec::new();
                 my_info_file.read_to_end(&mut deserialized).unwrap();
                 let mut cursor = Cursor::new(&deserialized);
                 let my_info = MyInfo::deserialize(&mut cursor).unwrap();
 
-                let mut hasher = Sha256::new();
-                hasher.update(id_string.clone());
-                let result = hasher.finalize();
-                let hashed_string = format!("{:x}", result);
-                println!("About to connect to the server...");
+                let session_token: String = rand::thread_rng()
+                .sample_iter(&Alphanumeric)
+                .take(30) 
+                .map(char::from)
+                .collect();
+
+                println!("About to connect to the server for estabilishing the chatting session ...");
                 let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
-                println!("Successfully connected to the server.");
+                println!("Successfully connected to the server for estabilishing the chatting session.");
                 // Create the request for update_session
                 let request = json!({
                     "action": "update_session",
                     "id_string": my_info.id_string.clone(),
-                    "session": hashed_string.clone(),
+                    "session":session_token.clone(),
                 });
                 // Convert the request to a byte array
                 let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
@@ -147,9 +148,9 @@ pub async fn option1() {
                             .interact()
                             .unwrap();
                         if message == "q" {
-                            println!("About to connect to the server for estabilishing session...");
+                            println!("About to connect to the server for removing chatting session...");
                             let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
-                            println!("Successfully connected to the server for estabilishing session.");
+                            println!("Successfully connected to the server for removing chatting session.");
                             // Create the request for update_session
                             let request = json!({
                                 "action": "update_session",
@@ -183,7 +184,7 @@ pub async fn option1() {
                         let request = json!({
                             "action": "unread_flag",
                             "id_string": my_info.id_string,
-                            "session": hashed_string.clone(),
+                            "session": session_token.clone(),
                             "rw": "r",
                         });
                         // Convert the request to a byte array
