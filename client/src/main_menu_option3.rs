@@ -20,6 +20,7 @@ struct Contact {
     own_write_tag: StoreKey,
     own_read_tag: StoreKey,
     symmetric_key: Vec<u8>,
+    eth_addr: String,
 }
 
 #[derive(CanonicalSerialize, CanonicalDeserialize, Debug)]
@@ -36,7 +37,7 @@ pub async fn option3() {
     let Store = KeyValueStore::new(
         &web3,
         // Update to match the deployed address
-        "0xDD7FE36d9340b502F143a4B43663613b0b29cc1f".to_string(),
+        "0xaa9DA43992664c44A2d46ccEd7c14a1CBf805177".to_string(),
     ).await;
 
     // Read to my_contact.json

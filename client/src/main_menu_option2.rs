@@ -35,6 +35,7 @@ struct Contact {
     own_write_tag: StoreKey,
     own_read_tag: StoreKey,
     symmetric_key: Vec<u8>,
+    eth_addr: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -113,6 +114,7 @@ pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {
         own_write_tag: own_write_tag.clone(),
         own_read_tag: own_read_tag.clone(),
         symmetric_key: symmetric_key.clone(),
+        eth_addr: String::new(),
     };
 
     // Read then write to my_contact.json

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity >=0.6.0 <0.9.0;
 
 contract KeyValueStore {
     // A discovery object holding a cipher and id of the user making transaction.
@@ -31,5 +31,18 @@ contract KeyValueStore {
 
     function Delete(address addr) public {
         delete map[addr];
+    }
+
+    // Receive Ether in this contract
+    receive() external payable {}
+
+    // Send Ether to the specified address
+    function sendEther(address payable to) public payable {
+        require(address(this).balance >= msg.value, "Insufficient balance");
+        _sendEther(to, msg.value); 
+    }
+
+    function _sendEther(address payable to, uint256 amount) private {
+        to.transfer(amount);
     }
 }

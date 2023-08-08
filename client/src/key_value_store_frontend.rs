@@ -5,14 +5,14 @@
 use web3::{
     transports::Http,
     contract::{Contract, Options},
-    types::Address
+    types::{Address, U256}
 };
 use std::str::FromStr;
 use arke_core::{UnlinkableHandshake, StoreKey,};
 use crossterm::terminal;
 use chrono::{Local, Timelike};
+use textwrap::wrap;
 
-//use crate::tui;
 
 #[derive(Clone)]
 pub struct KeyValueStore(Contract<Http>);
@@ -134,23 +134,56 @@ impl KeyValueStore {
         match tx {
             //Ok(_) => println!("✓ Delete completed"),
             Ok(_) => {},
-            //Err(e) => eprintln!("Failed to Delete: {:?}", e),
-            Err(_) => {},
+            Err(_) => {
+                //eprintln!("Failed to Delete: {:?}", e),
+                return;
+            },
         }
     }
 
+
+    /* sendEther */
+    pub async fn sendEther(&self, to: Address, amount: U256, from: Address) {
+        // Call to create the transaction
+        let tx = self
+            .0
+            .call(
+                "sendEther",
+                to,
+                from,
+                Options {
+                    gas: Some(5_000_000.into()),
+                    value: Some(amount),
+                    ..Default::default()
+                }
+            )
+            .await;
+        match tx {
+            Ok(_) => println!("✓ sendEther completed"),
+            Err(e) => {
+                eprintln!("Failed to sendEther: {:?}", e);
+                return;
+            },
+        }
+    }
+
+
     fn print_chatbox(message: &str) {
-        let len = message.len();
-        let term_size = terminal::size().unwrap();
-        let padding = term_size.0 as usize - len - 7;
-        println!("\n");
-        // Print top border
-        println!("{:width$} {}", "", "━".repeat(len + 4), width = padding);
-        // Print message
-        println!("{:width$} /  {}  \\", "", message, width = padding-1);
-        // Print bottom border
-        println!("{:width$} {}", "", "━".repeat(len + 4), width = padding);
+        let term_width = terminal::size().unwrap().0 as usize;
+        // Deducting space for the border and padding
+        let wrap_width = term_width/2;
+        // Wrapping the text based on the terminal width
+        let wrapped_text = wrap(message, wrap_width);
+        // Finding the maximum line length after wrapping
+        let max_length = wrapped_text.iter().map(|line| line.len()).max().unwrap_or(0);
+        let padding = term_width - max_length - 6; 
+        println!("\n{:width$}┌{}┐", "", "─".repeat(max_length + 2), width = padding);
+        for line in wrapped_text {
+            println!("{:width$}│ {}{} │", "", line, " ".repeat(max_length - line.len()), width = padding);
+        }
+        println!("{:width$}└{}┘", "", "─".repeat(max_length + 2), width = padding);
         let local_time = Local::now();
-        println!("{:width$} {:02}:{:02}:{:02}  ▼", "", local_time.hour(), local_time.minute(), local_time.second(), width = term_size.0 as usize -13);
+        let time_str = format!("{:02}:{:02}:{:02}  ▼", local_time.hour(), local_time.minute(), local_time.second());
+        println!("{:width$}{}", "", time_str, width = term_width as usize - 13);
     }
 }
