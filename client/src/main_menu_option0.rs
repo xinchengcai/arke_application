@@ -12,18 +12,17 @@ use tokio::io::{AsyncWriteExt, AsyncReadExt};
 use std::fs::File;
 use tokio::time::Duration;
 
-use arke_core::{ UserSecretKey, BlindIDCircuitParameters,
+use arke_core::{ UserSecretKey, BlindIDCircuitParameters, PartialSecretKey,
                 BLSPublicParameters, IssuerPublicKey, RegistrarPublicKey, 
                 UserID, IssuancePublicParameters, IssuerSecretKey, 
                 ThresholdObliviousIdNIKE, RegistrarSecretKey, BlindPartialSecretKey,
-                PartialSecretKey, };
+            };
 use ark_ec::bls12::Bls12;
-use ark_ec::bw6::BW6;
-use ark_bw6_761::Parameters as Parameters761;
 use ark_ff::Fp256;
 use ark_bls12_377::FrParameters;
 use ark_bw6_761::BW6_761;
 use ark_bls12_377::{Bls12_377, Parameters};
+use ark_std::One;
 use secret_sharing::shamir_secret_sharing::SecretShare;
 type ArkeIdNIKE = ThresholdObliviousIdNIKE<Bls12_377, BW6_761>;
 /// Length of the id string
@@ -133,75 +132,30 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         
+        let id = UserID::new(&id_string);
+        let mut rng = thread_rng();
+        let num_of_domain_sep_bytes = REGISTRAR_DOMAIN.len();
+        let num_of_identifier_bytes = id.0.as_bytes().len();
+        let num_of_blinding_factor_bits = ark_bls12_377::Fr::one().serialized_size() * 8;
+        // Simulate the SNARK trusted setup
+        println!("- Running trusted setup");
+        let pp_zk = ArkeIdNIKE::setup_blind_id_proof(
+            num_of_domain_sep_bytes,
+            num_of_identifier_bytes,
+            num_of_blinding_factor_bits,
+            &mut rng,
+        )
+        .unwrap();
 
-        println!("About to connect to the server for getting setup details ...");
-        let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
-        println!("Successfully connected to the server for getting setup details.");
 
-        // Initialize pp_zk as None
-        let mut pp_zk: Option<BlindIDCircuitParameters<BW6<Parameters761>>> = None;
-        // Initialize pp_zk_base64 as None
-        let mut pp_zk_base64: Option<String> = None;
+        println!("About to connect to the key-issuing authority for getting setup details ...");
+        let mut k_authority_stream = TcpStream::connect("127.0.0.1:8081").await?;
+        println!("Successfully connected to the key-issuing authority for getting setup details.");
+
         // Initialize pp_issuance as None
         let mut pp_issuance: Option<BLSPublicParameters<Bls12<Parameters>>> = None;
         // Initialize pp_issuance_base64 as None
         let mut pp_issuance_base64: Option<String> = None;
-
-        // Create the request for get_pp_zk, 
-        let request = json!({
-            "action": "get_pp_zk",
-        });
-        // Convert the request to a byte array
-        let request_bytes = serde_json::to_vec(&request)?;
-        // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
-        // Create a buffer to read the response into
-        let mut buf = vec![0; 1024]; 
-        let mut response = Vec::new();
-        loop {
-            let timeout = tokio::time::sleep(Duration::from_secs(5));
-            tokio::pin!(timeout);
-            tokio::select! {
-                _ = &mut timeout => {
-                    eprintln!("Timeout while reading from the stream");
-                    break;
-                },
-                result = stream.read(&mut buf) => {
-                    match result {
-                        Ok(n) if n == 0 => break,
-                        Ok(n) => {
-                            response.extend_from_slice(&buf[..n]);
-                        },
-                        Err(e) => {
-                            eprintln!("An error occurred while reading from the stream: {}", e);
-                            break;
-                        }
-                    }
-                },
-            };
-        }
-        // Parse the response
-        let response: serde_json::Value = match serde_json::from_slice(&response[..]) {
-            Ok(val) => val,
-            Err(e) => {
-                eprintln!("Failed to parse the response: {}", e);
-                return Err(Box::new(e) as Box<dyn std::error::Error>);
-            }
-        };
-        // Print the response
-        println!("Response: {}", response);
-        if let Some(status) = response.get("status") {
-            match status.as_str() {
-                Some("success") => {
-                    if let Some(pp_zk_value) = response.get("pp_zk") {
-                        pp_zk_base64 = Some(pp_zk_value.as_str().unwrap().to_string());
-                    } 
-                },
-                _ => {
-                    println!("Invalid response from server");
-                }
-            }
-        }
 
         // Create the request for get_pp_issuance, 
         let request = json!({
@@ -210,10 +164,10 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;
         // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
+        k_authority_stream.write_all(&request_bytes).await?;
         // Create a buffer to read the response into
         let mut buf = vec![0; 1024];
-        let n = stream.read(&mut buf).await?;
+        let n = k_authority_stream.read(&mut buf).await?;
         // Parse the response
         let response: serde_json::Value = match serde_json::from_slice(&buf[..n]) {
             Ok(val) => val,
@@ -244,10 +198,10 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;
         // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
+        k_authority_stream.write_all(&request_bytes).await?;
         // Create a buffer to read the response into
         let mut buf = vec![0; 1024];
-        let n = stream.read(&mut buf).await?;
+        let n = k_authority_stream.read(&mut buf).await?;
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
         // Print the response
@@ -276,9 +230,9 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;
         // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
+        k_authority_stream.write_all(&request_bytes).await?;
         // Create a buffer to read the response into
-        let mut buf = vec![0; 1024]; // change this to a size that suits your needs
+        let mut buf = vec![0; 1024]; 
         let mut response = Vec::new();
         loop {
             let timeout = tokio::time::sleep(Duration::from_secs(5));
@@ -288,7 +242,7 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
                     eprintln!("Timeout while reading from the stream");
                     break;
                 },
-                result = stream.read(&mut buf) => {
+                result = k_authority_stream.read(&mut buf) => {
                     match result {
                         Ok(n) if n == 0 => break,
                         Ok(n) => {
@@ -322,6 +276,12 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+        drop(k_authority_stream);
+
+
+        println!("About to connect to the registration authority for getting setup details ...");
+        let mut r_authority_stream = TcpStream::connect("127.0.0.1:8082").await?;
+        println!("Successfully connected to the registration authority for getting setup details.");
     
         // Create the request for get_registrar_secret_key, 
         let request = json!({
@@ -330,10 +290,10 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;
         // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
+        r_authority_stream.write_all(&request_bytes).await?;
         // Create a buffer to read the response into
         let mut buf = vec![0; 1024];
-        let n = stream.read(&mut buf).await?;
+        let n = r_authority_stream.read(&mut buf).await?;
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
         // Print the response
@@ -362,10 +322,10 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;
         // Write the request to the stream
-        stream.write_all(&request_bytes).await?;
+        r_authority_stream.write_all(&request_bytes).await?;
         // Create a buffer to read the response into
         let mut buf = vec![0; 1024];
-        let n = stream.read(&mut buf).await?;
+        let n = r_authority_stream.read(&mut buf).await?;
         // Parse the response
         let response: serde_json::Value = serde_json::from_slice(&buf[..n])?;
         // Print the response
@@ -386,20 +346,9 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        drop(stream);
+        drop(r_authority_stream);
     
         println!("- Deserializing");
-        if let Some(pp_zk_base64) = pp_zk_base64 {
-            // Decode from base64
-            let pp_zk_bytes = base64::decode(&pp_zk_base64).unwrap();
-            // CanonicalDeserialize 
-            let mut pp_zk_cursor = Cursor::new(&pp_zk_bytes);
-            pp_zk = Some(BlindIDCircuitParameters::<BW6<Parameters761>>::deserialize(&mut pp_zk_cursor).unwrap());
-        } 
-        let pp_zk = match pp_zk {
-            Some(pp_zk) => pp_zk,
-            None => return Err(Box::new(std::io::Error::new(std::io::ErrorKind::Other, "pp_zk is None"))),
-        };
         if let Some(pp_issuance_base64) = pp_issuance_base64 {
             // Decode from base64
             let pp_issuance_bytes = base64::decode(&pp_issuance_base64).unwrap();

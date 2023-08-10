@@ -51,7 +51,7 @@ impl Arke {
         // Derive symmertric key from the shared seed
         let symmetric_key = UnlinkableHandshake::derive_symmetric_key(&shared_seed).unwrap();
         assert_eq!(SIZE_SYMMETRIC_KEYS_IN_BYTES, symmetric_key.len());
-        println!("- You and your contact derive a symmetric key: {:?}", symmetric_key);
+        println!("- You derives a symmetric key: {:?}", symmetric_key);
     
         // Compute Write and Read tags
         let (alice_write_tag, _alice_exponent) =

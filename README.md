@@ -26,15 +26,23 @@
 1. Navigate to the client folder, update the contract address on line 75 of the file main_menu_option1.rs to the deployed contract address as shown on ganache. Also update the contract address on line 40 of the file main_menu_option3.rs to the same deployed contract address.
    ![setup for testing the application 1](screenshots/setup_for_testing_the_application_1.png)
 2. Duplicate the client folder to simulate two users.
-3. In a command prompt, Navigate to client folder and start client for user1 with the command below:
+3. In command prompt 1, Navigate to client folder and start client for user1 with the command below:
    ```sh
    cargo run --release
    ```
-4. In another command prompt, Navigate to the copied client folder and start client for user2 with the command below:
+4. In command prompt 2, Navigate to the copied client folder and start client for user2 with the command below:
    ```sh
    cargo run --release
    ```
-5. In another command prompt, Navigate to server folder and start server with the command below:
+5. In command prompt 3, Navigate to server folder and start application server with the command below:
+   ```sh
+   cargo run --release
+   ```
+6. In command prompt 4, Navigate to server folder and start key-issuing authority with the command below:
+   ```sh
+   cargo run --release
+   ```
+7. In command prompt 5, Navigate to server folder and start registration authority with the command below:
    ```sh
    cargo run --release
    ```
@@ -44,5 +52,4 @@
 1. In the first runs for both clients, select "My Info" from the main menu to fill the personal information of the users. Give different IDs and eth addresses for two users. Eth addresses can be selected from the account address provided in the previously setup ganache workspace.
 2. For user1, select "Contact Discovery" from the main menu to add user2 to the contact book. For user2, select "Contact Discovery" from the main menu to user1 to the contact book. Contact discovery takes a long time even in release mode due to client deserializing setup details such as pp_zk from the server.
 3. After contact discovery finished for both users, for each user, select "Contacts" from the main menu to verify that the discovered user is added to the contact book.
-4. Both users select each other in the contact book to start chatting.
-5. Type in any message to chat. Type 'q' to go back to the contacts book.
+4. Both users can select each other in the contact book to start chatting or transfering ether.
