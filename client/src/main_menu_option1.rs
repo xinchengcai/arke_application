@@ -4,6 +4,8 @@
 
 use web3::types::Address;
 use web3::types::{H160, U256};
+use web3::futures::StreamExt;
+use web3::types::{FilterBuilder, Log};
 use std::str::FromStr;
 use crate::key_value_store_frontend::KeyValueStore;
 use rand::{distributions::Alphanumeric, Rng, thread_rng};
@@ -65,16 +67,18 @@ fn print_chatbox(message: &str) {
     println!("{}", time_str);
 }
 
-pub async fn option1() {   
+pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{   
     // Setup the contract and an interface to access it's functionality 
-    let transport = web3::transports::Http::new("HTTP://127.0.0.1:9545").unwrap();
+    let transport = web3::transports::WebSocket::new("ws://127.0.0.1:9545").await?;
     let web3 = web3::Web3::new(transport);
+    let web3 = Arc::new(web3);
     let Store = KeyValueStore::new(
         &web3,
         // Update to match the deployed contract address on ganache
-        "0xaa9DA43992664c44A2d46ccEd7c14a1CBf805177".to_string(),
+        "0x061d97dBFf19a8540090142781891CaC6B5Eb982".to_string(),
         ).await;     
     let Store = Arc::new(Store);
+
     
     // Read contacts.json
     let file = OpenOptions::new()
@@ -87,7 +91,7 @@ pub async fn option1() {
     // If empty, return to the main menu
     if metadata.len() == 0 {
         println!("No contacts");
-        return;
+        return Ok(());
     }
 
     // Derialize contacts.json to read contact objects 
@@ -130,58 +134,15 @@ pub async fn option1() {
                     .unwrap();
                 match ContactActionMenuSelection {
                     0 => {
-                        // update session
-                        let mut my_info_file = File::open("src/my_info.bin").unwrap();
-                        let mut deserialized: Vec<u8> = Vec::new();
-                        my_info_file.read_to_end(&mut deserialized).unwrap();
-                        let mut cursor = Cursor::new(&deserialized);
-                        let my_info = MyInfo::deserialize(&mut cursor).unwrap();
-
-                        let session_token: String = rand::thread_rng()
-                            .sample_iter(&Alphanumeric)
-                            .take(30) 
-                            .map(char::from)
-                            .collect();
-
-                        println!("About to connect to the server for estabilishing the chatting session ...");
-                        let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
-                        println!("Successfully connected to the server for estabilishing the chatting session.");
-                        // Create the request for update_session
-                        let request = json!({
-                            "action": "update_session",
-                            "id_string": my_info.id_string.clone(),
-                            "session":session_token.clone(),
-                        });
-                        // Convert the request to a byte array
-                        let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
-                        // Write the request to the stream
-                        stream.write_all(&request_bytes).await.expect("Could not write the stream");
-
                         let (tx, mut rx) = mpsc::channel(100);
-                        let read_stream1 = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
-                        let read_stream2 = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
-                        let write_stream = Arc::new(Mutex::new(TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server")));
-                
+
                         tokio::spawn(async move {
                             loop {
                                 let message = dialoguer::Input::<String>::new()
                                 //.with_prompt("What message do you want to send? (type q to quit)")
                                 .interact()
                                 .unwrap();
-                                if message == "q" {
-                                    println!("About to connect to the server for removing chatting session...");
-                                    let mut stream = TcpStream::connect("127.0.0.1:8080").await.expect("Could not connect to server");
-                                    println!("Successfully connected to the server for removing chatting session.");
-                                    // Create the request for update_session
-                                    let request = json!({
-                                        "action": "update_session",
-                                        "id_string": my_info.id_string.clone(),
-                                        "session": String::new(),
-                                    });
-                                    // Convert the request to a byte array
-                                    let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
-                                    // Write the request to the stream
-                                    stream.write_all(&request_bytes).await.expect("Could not write the stream");            
+                                if message == "q" {       
                                     break;
                                 }
                                 if tx.send(message).await.is_err() {
@@ -191,64 +152,46 @@ pub async fn option1() {
                         });
  
                         let Store_clone1 = Arc::clone(&Store);
+                        let web3_clone = Arc::clone(&web3);
                         tokio::spawn(async move {
+                            let filter = FilterBuilder::default()
+                                .address(vec!["0x061d97dBFf19a8540090142781891CaC6B5Eb982".parse().unwrap()])
+                                .build();
                             loop {
+                                let filter_clone = filter.clone();
                                 let mut my_info_file = File::open("src/my_info.bin").unwrap();
                                 let mut deserialized: Vec<u8> = Vec::new();
                                 my_info_file.read_to_end(&mut deserialized).unwrap();
                                 let mut cursor = Cursor::new(&deserialized);
                                 let my_info = MyInfo::deserialize(&mut cursor).unwrap();
 
-                                // Create the request for read unread_flag
-                                let request = json!({
-                                    "action": "unread_flag",
-                                    "id_string": my_info.id_string,
-                                    "session": session_token.clone(),
-                                    "rw": "r",
-                                });
-                                // Convert the request to a byte array
-                                let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
-                                // Lock the stream before using it
-                                let mut locked_stream1 = read_stream1.lock().await;
-                                // Write the request to the stream
-                                locked_stream1.write_all(&request_bytes).await.expect("Could not write the stream");
-                                // Create a buffer to read the response into
-                                let mut buf = vec![0; 1024];
-                                let n = locked_stream1.read(&mut buf).await.expect("Could not read the response");
-                                let s = std::str::from_utf8(&buf[..n]).expect("Could not convert to string");
-                                for line in s.split('\n') {
-                                    if !line.is_empty() {
-                                        // Parse the response
-                                        //println!("Server response: {}", s);
-                                        let response: serde_json::Value = serde_json::from_slice(&buf[..n]).expect("Could not parse response");
-                                        if let Some(flag) = response.get("flag") {
-                                            /* Read */
-                                            match flag.as_bool() {
-                                                Some(true) => {
-                                                    let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                                                    let symmetric_key = selected_contact.symmetric_key.clone();
-                                                    Store_clone1.Read(store_addr, reader_addr, symmetric_key.clone(), own_read_tag.clone()).await;
-                                                    // Lock the stream before using it
-                                                    let mut locked_stream2 = read_stream2.lock().await;
-                                                    // Create the request for write unread_flag to false
-                                                    let request = json!({
-                                                        "action": "unread_flag",
-                                                        "id_string": my_info.id_string,
-                                                        "session": String::new(),
-                                                        "rw": "wf",
-                                                    });
-                                                    // Convert the request to a byte array
-                                                    let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
-                                                    // Write the request to the stream
-                                                    locked_stream2.write_all(&request_bytes).await.expect("Could not write the stream");
-                                                },
-                                                Some(false) => {},
-                                                None => {}
-                                            } 
-                                        }   
+                                match web3_clone.eth_subscribe().subscribe_logs(filter_clone).await {
+                                    Ok(mut sub) => {
+                                        // Process incoming events
+                                        while let Some(Ok(_log)) = sub.next().await {
+                                            //println!("Event triggered!");
+                                            let log_data = &_log.data.0;
+                                            let log_str = String::from_utf8_lossy(log_data);
+                                            let log_id: String = log_str.chars()
+                                                .filter(|&c| (c.is_ascii_graphic() || c == ' ') && c != '0')
+                                                .collect::<String>()
+                                                .trim_start()
+                                                .to_string();                          
+                                            if log_id == my_info.id_string {
+                                                /* Read */
+                                                let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
+                                                let symmetric_key = selected_contact.symmetric_key.clone();
+                                                Store_clone1.Read(store_addr, reader_addr, symmetric_key.clone(), own_read_tag.clone()).await;
+                                                thread::sleep(Duration::from_secs(1));  // sleep for 1 seconds before the next Read                                          
+                                            }
+                                        }
+                                    },
+                                    Err(e) => {
+                                        // Handle the error, possibly by logging it and/or breaking out of the loop
+                                        println!("Error subscribing to logs: {:?}", e);
+                                        break;
                                     }
                                 }
-                                thread::sleep(Duration::from_secs(1));  // sleep for 1 seconds before the next Read
                             }
                         });
 
@@ -265,21 +208,6 @@ pub async fn option1() {
                             UnlinkableHandshake::encrypt_message(&symmetric_key, &own_write_tag, message.as_bytes(), &mut rng).unwrap();
                             let writer_addr = Address::from_str(&my_info.eth_addr).unwrap();
                             Store_clone2.Write(cipher, iv, store_addr, writer_addr, id_string.clone()).await;
-                    
-                            // Create the request for write unread_flag to true
-                            let request = json!({
-                                "action": "unread_flag",
-                                "id_string": selected_contact.id_string,
-                                "session": String::new(),
-                                "rw": "wt",
-                            });
-                            // Convert the request to a byte array
-                            let request_bytes = serde_json::to_vec(&request).expect("Could not convert request");
-                            // Lock the stream before using it
-                            let mut locked_stream = write_stream.lock().await;
-                            // Write the request to the stream
-                            locked_stream.write_all(&request_bytes).await.expect("Could not write the stream");
-                            //println!("{}", my_info.nickname);
                             print_chatbox(&message);
                         }
                     }
@@ -324,7 +252,7 @@ pub async fn option1() {
                             let my_info = MyInfo::deserialize(&mut cursor).unwrap();
                             let sender_addr = Address::from_str(&my_info.eth_addr).unwrap();
                             Store_clone.sendEther(Address::from_str(&recepient_eth_addr).unwrap(), amount_in_wei, sender_addr).await;
-                            break;
+                            return Ok(());
                         }
                         else {
                             let amount = dialoguer::Input::<String>::new()
@@ -343,19 +271,19 @@ pub async fn option1() {
                             let my_info = MyInfo::deserialize(&mut cursor).unwrap();
                             let sender_addr = Address::from_str(&my_info.eth_addr).unwrap();
                             Store_clone.sendEther(Address::from_str(&eth_addr).unwrap(), amount_in_wei, sender_addr).await;
-                            break;
+                            return Ok(());
                         }
                     }
 
                     _ => {
-                        break;
+                        return Ok(());
                     }
                 }    
             }
 
             _ => {
                 // If selected go back, return to the main menu
-                break;
+                return Ok(());
             }
         }
     }

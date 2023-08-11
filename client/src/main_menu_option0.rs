@@ -43,8 +43,6 @@ struct MyInfo {
 #[derive(Serialize, Deserialize, Debug)]
 struct User {
     id_string: String,
-    unread: bool,
-    session: String,
 }
 
 
@@ -450,8 +448,6 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         // Create new user object
         let new_user = User {
             id_string: my_info.id_string,
-            unread: false,
-            session: String::new(),
         };
         println!("About to connect to the server for adding your info to the user database...");
         let mut stream = TcpStream::connect("127.0.0.1:8080").await?;
@@ -460,8 +456,6 @@ pub async fn option0 () -> Result<(), Box<dyn std::error::Error>> {
         let request = json!({
             "action": "add_user",
             "id_string": new_user.id_string,
-            "unread": new_user.unread,
-            "session": new_user.session,
         });
         // Convert the request to a byte array
         let request_bytes = serde_json::to_vec(&request)?;

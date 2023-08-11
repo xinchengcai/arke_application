@@ -30,14 +30,14 @@ struct MyInfo {
     sk: UserSecretKey<Bls12<Parameters>>,
 }
 
-pub async fn option3() {
+pub async fn option3() -> Result<(), Box<dyn std::error::Error>>{
     // Setup the contract and an interface to access it's functionality
-    let transport = web3::transports::Http::new("HTTP://127.0.0.1:9545").unwrap();
+    let transport = web3::transports::WebSocket::new("ws://127.0.0.1:9545").await?;
     let web3 = web3::Web3::new(transport);
     let Store = KeyValueStore::new(
         &web3,
         // Update to match the deployed address
-        "0xaa9DA43992664c44A2d46ccEd7c14a1CBf805177".to_string(),
+        "0x061d97dBFf19a8540090142781891CaC6B5Eb982".to_string(),
     ).await;
 
     // Read to my_contact.json
@@ -51,7 +51,7 @@ pub async fn option3() {
     // If empty, return to the main menu
     if metadata.len() == 0 {
         println!("No contacts");
-        return;
+        return Ok(());
     }
 
     // Derialize contacts.json to read contact objects 
@@ -107,13 +107,13 @@ pub async fn option3() {
                 Store.Delete(store_addr, deleter_addr).await;
 
                 // Return to the main menu
-                break;
+                return Ok(());
             }
 
             // If selected go back
             _ => {
                 // Return to the main menu
-                break;
+                return Ok(());
             }
         }
     }

@@ -3,6 +3,8 @@
 pragma solidity >=0.6.0 <0.9.0;
 
 contract KeyValueStore {
+    event unread(string id);
+
     // A discovery object holding a cipher and id of the user making transaction.
     // {id_{A}, c_{AB}}
     struct Discovery {
@@ -21,6 +23,7 @@ contract KeyValueStore {
         discovery.cipher = cipher;
         discovery.iv = iv;
         map[addr] = discovery;
+        emit unread(id);
     }
 
     function Read(address addr) public view returns(bytes memory, bytes memory){

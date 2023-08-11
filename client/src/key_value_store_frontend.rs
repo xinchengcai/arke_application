@@ -3,7 +3,7 @@
 #![allow(dead_code)]
 
 use web3::{
-    transports::Http,
+    transports::WebSocket,
     contract::{Contract, Options},
     types::{Address, U256}
 };
@@ -15,10 +15,10 @@ use textwrap::wrap;
 
 
 #[derive(Clone)]
-pub struct KeyValueStore(Contract<Http>);
+pub struct KeyValueStore(Contract<WebSocket>);
 
 impl KeyValueStore {
-    pub async fn new(web3: &web3::Web3<web3::transports::Http>, contract_address: String) -> Self {
+    pub async fn new(web3: &web3::Web3<web3::transports::WebSocket>, contract_address: String) -> Self {
         let contract_address = Address::from_str(&contract_address).unwrap();
         let contract =
             Contract::from_json(web3.eth(), contract_address, include_bytes!("key_value_store.abi")).unwrap();

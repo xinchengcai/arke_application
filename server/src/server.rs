@@ -15,8 +15,6 @@ use std::sync::Arc;
 #[derive(Serialize, Deserialize, Debug)]
 struct User {
     id_string: String,
-    unread: bool,
-    session: String,
 }
 
 #[derive(Clone)]
@@ -98,9 +96,7 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>) -> Value {
     match request["action"].as_str() {
         Some("add_user") => {
             let id_string = request["id_string"].as_str().unwrap().to_string();
-            let unread: bool = request["unread"].as_bool().unwrap();
-            let session = request["session"].as_str().unwrap().to_string();
-            let user = User {id_string, unread, session};
+            let user = User {id_string};
 
             // Load users from the JSON file
             let mut users = users_db.load().await.unwrap();
@@ -127,61 +123,6 @@ async fn process_request(request: Value, users_db: Arc<UserDatabase>) -> Value {
             }
         },
 
-
-        Some("update_session") => {
-            let mut users = users_db.load().await.unwrap();
-            let id_string = request["id_string"].as_str().unwrap().to_string();
-            let session = request["session"].as_str().unwrap().to_string();
-            for user in users.iter_mut() {
-                if user.id_string == id_string {
-                    user.session = session;
-                    break;
-                }
-            }
-            users_db.save(&users).await.unwrap();
-            json!({ "status": "success", "message": "✓ Set session"})
-        },
-
-
-        Some("unread_flag") => {
-            let id_string = request["id_string"].as_str().unwrap().to_string();
-            let session = request["session"].as_str().unwrap().to_string();
-            let rw = request["rw"].as_str().unwrap().to_string();
-            let mut users = users_db.load().await.unwrap();
-            let mut response = json!({ "status": "error", "message": "user not found" }); // Default error message
-            for user in users.iter_mut() {
-                if user.id_string == id_string {
-                    if rw == "r" {
-                        if user.session == session {
-                            let result = user.unread;
-                            response = json!({ "status": "success", "message": "✓ Got flag", "flag": result});
-                            break;
-                        }
-                        else {
-                            response = json!({ "status": "error", "message": "invalid session"});
-                            break;
-                        }
-                    }
-                    else if rw == "wt" {
-                        user.unread = true;
-                        users_db.save(&users).await.unwrap();
-                        response = json!({ "status": "success", "message": "✓ Set flag to true"});
-                        break;
-                    }
-                    else if rw == "wf" {
-                        user.unread = false;
-                        users_db.save(&users).await.unwrap();
-                        response = json!({ "status": "success", "message": "✓ Set flag to false"});
-                        break;
-                    }
-                    else {
-                        response = json!({ "status": "error", "message": "invalid rw"});
-                        break;
-                    }
-                }
-            }
-            response
-        },
 
         _ => {
             json!({ "status": "error", "message": "invalid action" })

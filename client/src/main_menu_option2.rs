@@ -41,8 +41,6 @@ struct Contact {
 #[derive(Serialize, Deserialize, Debug)]
 struct User {
     id_string: String,
-    unread: bool,
-    session: String,
 }
 
 pub async fn option2() -> Result<(), Box<dyn std::error::Error>> {

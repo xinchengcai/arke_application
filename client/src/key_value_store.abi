@@ -1,5 +1,18 @@
 [
 	{
+		"anonymous": false,
+		"inputs": [
+			{
+				"indexed": false,
+				"internalType": "string",
+				"name": "id",
+				"type": "string"
+			}
+		],
+		"name": "unread",
+		"type": "event"
+	},
+	{
 		"inputs": [
 			{
 				"internalType": "address",
