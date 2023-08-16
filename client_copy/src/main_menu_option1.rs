@@ -147,7 +147,7 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                         handle1 = Some(tokio::spawn(async move {
                             loop {
                                 if should_terminate_clone1.load(Ordering::Relaxed) {
-                                    //println!("terminated handle1");
+                                    // println!("terminated handle1");
                                     break;
                                 }
 
@@ -161,10 +161,12 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                                 }
 
                                 if tx.send(message).await.is_err() {
-                                    break;
+                                   break;
                                 }
                             }
                         }));
+
+
  
                         let Store_clone1 = Arc::clone(&Store);
                         let web3_clone = Arc::clone(&web3);

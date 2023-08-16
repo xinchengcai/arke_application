@@ -42,10 +42,7 @@ contract KeyValueStore {
     // Send Ether to the specified address
     function sendEther(address payable to) public payable {
         require(address(this).balance >= msg.value, "Insufficient balance");
-        _sendEther(to, msg.value); 
+        to.transfer(msg.value); 
     }
 
-    function _sendEther(address payable to, uint256 amount) private {
-        to.transfer(amount);
-    }
 }
