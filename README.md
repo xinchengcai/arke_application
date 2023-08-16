@@ -23,7 +23,7 @@
 8. Keep ganache running
 
 ### Setup for testing the application
-1. Navigate to the client folder, update the contract address on line 75 of the file main_menu_option1.rs to the deployed contract address as shown on ganache. Also update the contract address on line 40 of the file main_menu_option3.rs to the same deployed contract address.
+1. Navigate to the client folder, update the contract address on line 82 and 174 of the file main_menu_option1.rs to the deployed contract address as shown on ganache. Also update the contract address on line 40 of the file main_menu_option3.rs to the same deployed contract address.
    ![setup for testing the application 1](screenshots/setup_for_testing_the_application_1.png)
 2. Duplicate the client folder to simulate two users.
 3. In command prompt 1, Navigate to client folder and start client for user1 with the command below:
@@ -34,7 +34,7 @@
    ```sh
    cargo run --release
    ```
-5. In command prompt 3, Navigate to server folder and start application server with the command below:
+5. In command prompt 3, Navigate to database_server folder and start application server with the command below:
    ```sh
    cargo run --release
    ```
