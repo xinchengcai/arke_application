@@ -1,12 +1,12 @@
 use tokio::runtime::Runtime;
-mod server;
-use server::Server; 
+mod key_issuing_authority;
+use key_issuing_authority::keyIssuingAuthority; 
 
 fn main() {
     println!("Key-issuing authority running...");
     let rt = Runtime::new().unwrap();
     rt.block_on(async {
-        let server = Server::new().await;
-        server.start().await.unwrap();
+        let key_issuing_athority = keyIssuingAuthority::new().await;
+        key_issuing_athority.start().await.unwrap();
     });
 }

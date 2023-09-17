@@ -4,9 +4,9 @@
 		"inputs": [
 			{
 				"indexed": false,
-				"internalType": "string",
+				"internalType": "string[]",
 				"name": "id",
-				"type": "string"
+				"type": "string[]"
 			}
 		],
 		"name": "unread",
@@ -67,9 +67,9 @@
 				"type": "address"
 			},
 			{
-				"internalType": "string",
+				"internalType": "string[]",
 				"name": "id",
-				"type": "string"
+				"type": "string[]"
 			}
 		],
 		"name": "Write",
@@ -87,11 +87,6 @@
 		],
 		"name": "map",
 		"outputs": [
-			{
-				"internalType": "string",
-				"name": "id",
-				"type": "string"
-			},
 			{
 				"internalType": "bytes",
 				"name": "cipher",

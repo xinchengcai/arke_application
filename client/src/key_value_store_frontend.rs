@@ -1,6 +1,9 @@
-#![allow(non_snake_case)]
+// ---------------------------------------
+// File: key_value_store_frontend.rs
+// Date: 11 Sept 2023
+// Description: Private chat and payment (client-side)
+// ---------------------------------------
 #![allow(unused_variables)]
-#![allow(dead_code)]
 
 use web3::{
     transports::WebSocket,
@@ -25,9 +28,8 @@ impl KeyValueStore {
         KeyValueStore(contract)
     }
 
-
-    /* Write */ 
-    pub async fn Write(&self, cipher: Vec<u8>, iv: Vec<u8>, addr: Address, from: Address, id: String) {
+    // Write transaction 
+    pub async fn Write(&self, cipher: Vec<u8>, iv: Vec<u8>, addr: Address, from: Address, id: Vec<String>) {
         //println!("Write cipher: {:?}", cipher);
         // Call to create the transaction
         let tx = self
@@ -45,12 +47,13 @@ impl KeyValueStore {
         match tx {
             //Ok(_) => println!("Write completed"),
             Ok(_) => {},
-            Err(e) => {}, //println!("Failed to Write: {:?}", e),
+            //println!("Failed to Write: {:?}", e),
+            Err(e) => {}, 
         }
     }
 
-
-    /* Read */
+    
+    // Read transaction 
     pub async fn Read(&self, addr: Address, from: Address, key: Vec<u8>, tag: StoreKey) {
         // Call to create the transaction
         let read_result: Result<(Vec<u8>, Vec<u8>), web3::contract::Error> = self
@@ -80,7 +83,6 @@ impl KeyValueStore {
                         let recovered_message_text = String::from_utf8(recovered_message.to_vec()).unwrap();   
                         //println!("{:?}", recovered_message_text); 
                         Self::print_chatbox(&recovered_message_text);
-                        //tui::start_tui(recovered_message_text);
                     }
                     Err(e) => {
                         //eprintln!("Failed to decrypt: {}", e);
@@ -89,7 +91,7 @@ impl KeyValueStore {
                 }   
             },
             Err(e) => {
-                //eprintln!("Failed to show Read result: {}", e);
+                eprintln!("Failed to show Read result: {}", e);
                 return;
             }
         }
@@ -116,7 +118,7 @@ impl KeyValueStore {
     }
 
 
-    /* Delete */
+    // Delete transaction
     pub async fn Delete(&self, addr: Address, from: Address) {
         // Call to create the transaction
         let tx = self
@@ -142,7 +144,7 @@ impl KeyValueStore {
     }
 
 
-    /* sendEther */
+    // sendEther transaction
     pub async fn sendEther(&self, to: Address, amount: U256, from: Address) {
         // Call to create the transaction
         let tx = self

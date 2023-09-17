@@ -1,12 +1,12 @@
 use tokio::runtime::Runtime;
-mod server;
-use server::Server; 
+mod registration_authority;
+use registration_authority::registrationAuthority; 
 
 fn main() {
     println!("Registration authority running...");
     let rt = Runtime::new().unwrap();
     rt.block_on(async {
-        let server = Server::new().await;
-        server.start().await.unwrap();
+        let registration_authority = registrationAuthority::new().await;
+        registration_authority.start().await.unwrap();
     });
 }

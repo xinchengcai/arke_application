@@ -5,27 +5,34 @@
 mod key_value_store_frontend;
 
 // Libs for arke
-mod arke_frontend;
+mod discovery_info;
 
 // Libs for UI
 use dialoguer::{theme::ColorfulTheme, FuzzySelect};
-mod main_menu_option0;
-use main_menu_option0::option0;
-mod main_menu_option1;
-use main_menu_option1::option1;
-mod main_menu_option2;
-use main_menu_option2::option2;
-mod main_menu_option3;
-use main_menu_option3::option3;
+
+mod user;
+use user::user;
+mod private_chat_and_pay;
+use private_chat_and_pay::privateChatAndPay;
+mod contact_discovery;
+use contact_discovery::contactDiscovery;
+mod delete_friend;
+use delete_friend::deleteFriend;
+mod group_chat;
+use group_chat::groupChat;
+mod create_group;
+use create_group::createGroup;
 
 
 #[tokio::main]
 pub async fn main() -> std::io::Result<()> {
     let MainMenu = &[
         "My info",
-        "Contacts",
+        "Friends",
         "Contact Discovery",
-        "Delete Contact",
+        "Delete Friend",
+        "Groups",
+        "Start Group",
         "Exit",
     ];
 
@@ -40,24 +47,35 @@ pub async fn main() -> std::io::Result<()> {
 
         match MainMenuSelection {
             0 => {
-                // Initialize my info if not registered
-                // Print my info if registered
-                option0().await; 
+                // Sign up and initialize my info if not signed up
+                // Print my info if signed up
+                user().await; 
             }
             1 => {
-                // Print the contact book
-                // Select a contact in the contact book to chat with that contact
-                option1().await; 
+                // Print the friend list
+                // Select a friend in the friend list to private chat or pay
+                privateChatAndPay().await; 
             }
             2 => {
-                // Perform contact discovery with an application user who's not in the contact book
-                option2().await; 
+                // Perform contact discovery with a target user
+                // Add the discovered user into the friend list
+                contactDiscovery().await; 
             }
             3 => {
-                // Delete a contact from the contact book
-                option3().await; 
+                // Delete a friend from the friend list
+                deleteFriend().await; 
             }
             4 => {
+                // Print the group list
+                // Select a group in the group list to group chat
+                groupChat().await;
+            }
+            5 => {
+                // Perform contact discovery with a desired group ID to create the group
+                // Add the created group into the group list
+                createGroup().await;
+            }
+            6 => {
                 // Exit the application
                 break; 
             }

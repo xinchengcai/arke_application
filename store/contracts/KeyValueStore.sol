@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
-
-pragma solidity >=0.6.0 <0.9.0;
+// ---------------------------------------
+// File: KeyValueStore.sol
+// Date: 01 Sept 2023
+// Description: Ethreum Contract
+//              Private chat and ether transfer (Storage authority-side)
+// ---------------------------------------
+pragma solidity >=0.8.0 <0.9.0;
 
 contract KeyValueStore {
-    event unread(string id);
+    event unread(string[] id);
 
-    // A discovery object holding a cipher and id of the user making transaction.
-    // {id_{A}, c_{AB}}
     struct Discovery {
-        string id;
+        string[] id;
         bytes cipher;
         bytes iv;
     }
-    
-    // A key-to-value map of the pairs (addr_{AB}, {id_{A}, c_{AB}})
-    // addr_{AB} is the locally derived from the key loc_{AB}
     mapping(address => Discovery) public map;
 
-    function Write(bytes memory cipher, bytes memory iv, address addr, string memory id) public {
+    function Write(bytes memory cipher, bytes memory iv, address addr, string[] memory id) public {
         Discovery memory discovery; 
         discovery.id = id;
         discovery.cipher = cipher;
@@ -27,8 +27,6 @@ contract KeyValueStore {
     }
 
     function Read(address addr) public view returns(bytes memory, bytes memory){
-        bytes memory stored_id = bytes(map[addr].id);
-        require(stored_id.length != 0, "No discovery object found."); 
         return (map[addr].cipher, map[addr].iv);
     }
 
@@ -44,5 +42,4 @@ contract KeyValueStore {
         require(address(this).balance >= msg.value, "Insufficient balance");
         to.transfer(msg.value); 
     }
-
 }

@@ -1,3 +1,8 @@
+// ---------------------------------------
+// File: private_chat_and_pay.rs
+// Date: 11 Sept 2023
+// Description: Private chat and payment (client-side)
+// ---------------------------------------
 #![allow(dead_code)]
 #![allow(unused_imports)]
 #![allow(non_snake_case)]
@@ -34,10 +39,10 @@ use std::io::{Seek, SeekFrom};
 use tokio::task::JoinHandle;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-
+const CONTRACT_ADDR: &str = "0xc23EDB04DebB123CDB1ac96a28eA18E8403a34d6";
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
-struct Contact {
+struct Friend {
     id_string: String,
     store_addr: H160,
     own_write_tag: StoreKey,
@@ -71,7 +76,7 @@ fn print_chatbox(message: &str) {
     println!("{}", time_str);
 }
 
-pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{   
+pub async fn privateChatAndPay() -> Result<(), Box<dyn std::error::Error>>{   
     // Setup the contract and an interface to access it's functionality 
     let transport = web3::transports::WebSocket::new("ws://127.0.0.1:9545").await?;
     let web3 = web3::Web3::new(transport);
@@ -79,32 +84,31 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
     let Store = KeyValueStore::new(
         &web3,
         // Update to match the deployed contract address on ganache
-        "0xa90E31278208dbD6a8f2eAAcDa4Bd819A8c9f928".to_string(),
+        CONTRACT_ADDR.to_string(),
         ).await;     
     let Store = Arc::new(Store);
 
-    
-    // Read contacts.json
+    // Read friends.json
     let file = OpenOptions::new()
         .read(true)
         .write(true)
-        .open("src/contacts.json")
+        .open("src/friends.json")
         .unwrap();
-    // Check whether contacts.json is empty or not, i.e. whether there are contacts or not
+    // Check whether friends.json is empty or not, i.e. whether there are friends or not
     let metadata = file.metadata().unwrap();
     // If empty, return to the main menu
     if metadata.len() == 0 {
-        println!("No contacts");
+        println!("No friends");
         return Ok(());
     }
 
-    // Derialize contacts.json to read contact objects 
-    let contacts: Vec<Contact> = serde_json::from_reader(file).unwrap();
-    // Convert each contact to a string representation and collect them into a vector
-    let mut ContactsMenu: Vec<String> = contacts.iter()
-        .map(|contact| { format!("ID string: {}", contact.id_string)}).collect();
+    // Derialize friends.json to read friend objects 
+    let friends: Vec<Friend> = serde_json::from_reader(file).unwrap();
+    // Convert each friend object to a string representation and collect them into a vector
+    let mut FriendsMenu: Vec<String> = friends.iter()
+        .map(|friend| { format!("ID string: {}", friend.id_string)}).collect();
     // Add go back to the end of the vector
-    ContactsMenu.push("Go back".to_string());
+    FriendsMenu.push("Go back".to_string());
 
     // Display the vector as a menu
     loop {
@@ -112,36 +116,36 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
         let mut handle2: Option<JoinHandle<()>> = None;
         let should_terminate = Arc::new(AtomicBool::new(false));
 
-        let ContactsMenuSelection = FuzzySelect::with_theme(&ColorfulTheme::default())
-            .with_prompt("Who would you like to contact?")
+        let FriendsMenuSelection = FuzzySelect::with_theme(&ColorfulTheme::default())
+            .with_prompt("Which friend would you like to contact?")
             .default(0)
-            .items(&ContactsMenu[..])
+            .items(&FriendsMenu[..])
             .interact()
             .unwrap();
-        match ContactsMenuSelection {
-            // If selected a contact
-            index if index < contacts.len() => {
-                let selected_contact = contacts[index].clone();
-                let id_string = selected_contact.id_string.clone();
-                let store_addr = selected_contact.store_addr.clone();
-                let own_write_tag = selected_contact.own_write_tag.clone();
-                let own_read_tag = selected_contact.own_read_tag.clone();
-                let symmetric_key = selected_contact.symmetric_key.clone();
-                let eth_addr = selected_contact.eth_addr.clone();
+        match FriendsMenuSelection {
+            // If selected a friend
+            index if index < friends.len() => {
+                let selected_friend = friends[index].clone();
+                let id_string = selected_friend.id_string.clone();
+                let store_addr = selected_friend.store_addr.clone();
+                let own_write_tag = selected_friend.own_write_tag.clone();
+                let own_read_tag = selected_friend.own_read_tag.clone();
+                let symmetric_key = selected_friend.symmetric_key.clone();
+                let eth_addr = selected_friend.eth_addr.clone();
 
-                let ContactActionMenu = &[
+                let FriendActionMenu = &[
                     "Chat",
                     "Pay",
                     "Exit",
                 ];
-                let ContactActionMenuSelection = FuzzySelect::with_theme(&ColorfulTheme::default())
-                    .with_prompt("What would you like to do with this contact?")
+                let FriendActionMenuSelection = FuzzySelect::with_theme(&ColorfulTheme::default())
+                    .with_prompt("What would you like to do with this friend?")
                     .default(0)
-                    .items(&ContactActionMenu[..])
+                    .items(&FriendActionMenu[..])
                     .interact()
                     .unwrap();
-                match ContactActionMenuSelection {
-                    0 => {
+                match FriendActionMenuSelection {
+                    0 => { // Chat with the friend
                         let (tx, mut rx) = mpsc::channel(100);
                         let should_terminate_clone1 = Arc::clone(&should_terminate);
                         handle1 = Some(tokio::spawn(async move {
@@ -170,8 +174,9 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                         let web3_clone = Arc::clone(&web3);
                         let should_terminate_clone2 = Arc::clone(&should_terminate);
                         handle2 = Some(tokio::spawn(async move {
+                            // Subscribe to the smart contract
                             let filter = FilterBuilder::default()
-                                .address(vec!["0xa90E31278208dbD6a8f2eAAcDa4Bd819A8c9f928".parse().unwrap()])
+                                .address(vec![CONTRACT_ADDR.parse().unwrap()])
                                 .build();
                             loop {
                                 if should_terminate_clone2.load(Ordering::Relaxed) {
@@ -193,25 +198,29 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                                                 //println!("terminated handle2");
                                                 break;
                                             }
-                                            //println!("Event triggered!");
+                                            // Parse the target user idenfier in the event
                                             let log_data = &_log.data.0;
                                             let log_str = String::from_utf8_lossy(log_data);
                                             let log_id: String = log_str.chars()
                                                 .filter(|&c| (c.is_ascii_graphic() || c == ' ') && c != '0')
                                                 .collect::<String>()
                                                 .trim_start()
-                                                .to_string();                          
+                                                .to_string();            
+                                            // If the target user identifier contained in the event is the same as the user's user identifier             
                                             if log_id == my_info.id_string {
-                                                /* Read */
+                                                // Make Read transaction
                                                 let reader_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                                                let symmetric_key = selected_contact.symmetric_key.clone();
+                                                let symmetric_key = selected_friend.symmetric_key.clone();
                                                 Store_clone1.Read(store_addr, reader_addr, symmetric_key.clone(), own_read_tag.clone()).await;
-                                                thread::sleep(Duration::from_secs(1));  // sleep for 1 seconds before the next Read                                          
+                                                // Make Delete transaction
+                                                let deleter_addr = Address::from_str(&my_info.eth_addr).unwrap();
+                                                Store_clone1.Delete(store_addr, deleter_addr).await;
+                                                // sleep for 1 seconds before the next Read
+                                                thread::sleep(Duration::from_secs(1));                                            
                                             }
                                         }
                                     },
                                     Err(e) => {
-                                        // Handle the error, possibly by logging it and/or breaking out of the loop
                                         println!("Error subscribing to logs: {:?}", e);
                                         break;
                                     }
@@ -230,7 +239,6 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                                 if let Some(handle) = handle2.take() {
                                     drop(handle);
                                 }
-                                //println!("dropped handles");
                             }
                             else {
                                 let mut my_info_file = File::open("src/my_info.bin").unwrap();
@@ -238,19 +246,23 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                                 my_info_file.read_to_end(&mut deserialized).unwrap();
                                 let mut cursor = Cursor::new(&deserialized);
                                 let my_info = MyInfo::deserialize(&mut cursor).unwrap();
-                                /* Write */
+                                // Make Write transaction
                                 let mut rng = thread_rng();
                                 let (iv, cipher) =
                                 UnlinkableHandshake::encrypt_message(&symmetric_key, &own_write_tag, message.as_bytes(), &mut rng).unwrap();
                                 let writer_addr = Address::from_str(&my_info.eth_addr).unwrap();
-                                Store_clone2.Write(cipher, iv, store_addr, writer_addr, id_string.clone()).await;
+                                let mut id_array: Vec<String> = Vec::new();
+                                id_array.push(id_string.clone());
+                                Store_clone2.Write(cipher, iv, store_addr, writer_addr, id_array).await;
                                 print_chatbox(&message);
                             }
                         }
                     }
 
-                    1 => {
-                        if selected_contact.eth_addr.to_string().len() == 0 {
+
+                    1 => { // Transfer ether to the friend
+                        // If the friend's wallet address is not saved 
+                        if selected_friend.eth_addr.to_string().len() == 0 {
                             let recepient_eth_addr = dialoguer::Input::<String>::new()
                                 .with_prompt("What is the recipient ethereum address?")
                                 .interact()
@@ -258,23 +270,23 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                             let mut file = OpenOptions::new()
                                 .read(true)
                                 .write(true)
-                                .open("src/contacts.json")
+                                .open("src/friends.json")
                                 .unwrap();
-                            // Derialize contacts.json to read contact objects 
-                            let mut contacts: Vec<Contact> = serde_json::from_reader(&file).unwrap();
-                            for contact in &mut contacts {
-                                if contact.id_string == selected_contact.id_string {
-                                    contact.eth_addr = recepient_eth_addr.clone();
+                            // Derialize friends.json to read friend objects 
+                            let mut friends: Vec<Friend> = serde_json::from_reader(&file).unwrap();
+                            for friend in &mut friends {
+                                if friend.id_string == selected_friend.id_string {
+                                    friend.eth_addr = recepient_eth_addr.clone();
                                     // Truncate the file and rewind to the beginning
                                     file.set_len(0).unwrap();
                                     file.seek(SeekFrom::Start(0)).unwrap();
-                                    // Write the updated contacts back to the file
-                                    serde_json::to_writer(&file, &contacts).unwrap();
+                                    // Write the updated friends back to the file
+                                    serde_json::to_writer(&file, &friends).unwrap();
                                     break;
                                 }
                             }
                             let amount = dialoguer::Input::<String>::new()
-                                .with_prompt("How much Ether do you want to send?")
+                                .with_prompt("How much Ether do you want to transfer?")
                                 .interact()
                                 .unwrap();
                             let amount_in_ether: f64 = amount.parse().expect("Failed to parse user input");
@@ -287,11 +299,12 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                             my_info_file.read_to_end(&mut deserialized).unwrap();
                             let mut cursor = Cursor::new(&deserialized);
                             let my_info = MyInfo::deserialize(&mut cursor).unwrap();
+                            // Make sendEther transaction
                             let sender_addr = Address::from_str(&my_info.eth_addr).unwrap();
                             Store_clone.sendEther(Address::from_str(&recepient_eth_addr).unwrap(), amount_in_wei, sender_addr).await;
                             return Ok(());
                         }
-                        else {
+                        else { // If the friend wallet address is saved 
                             let amount = dialoguer::Input::<String>::new()
                                 .with_prompt("How much Ether do you want to send?")
                                 .interact()
@@ -306,6 +319,7 @@ pub async fn option1() -> Result<(), Box<dyn std::error::Error>>{
                             my_info_file.read_to_end(&mut deserialized).unwrap();
                             let mut cursor = Cursor::new(&deserialized);
                             let my_info = MyInfo::deserialize(&mut cursor).unwrap();
+                            // Make sendEther transaction
                             let sender_addr = Address::from_str(&my_info.eth_addr).unwrap();
                             Store_clone.sendEther(Address::from_str(&eth_addr).unwrap(), amount_in_wei, sender_addr).await;
                             return Ok(());
